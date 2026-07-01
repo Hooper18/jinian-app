@@ -1,4 +1,5 @@
 import { type CivilDate, diffDays, daysInMonth, isLeapYear } from './civilDate'
+import { type LunarDateSpec, nextLunarOccurrence } from './lunar'
 
 export type OccasionKind = 'anniversary' | 'since' | 'until'
 export type LeapFallback = 'feb28' | 'mar1'
@@ -51,7 +52,7 @@ export interface OccasionState {
 export interface OccasionInput {
   kind: OccasionKind
   date: CivilDate
-  lunar?: { lunarMonth: number; lunarDay: number; isLeap: boolean } | null
+  lunar?: LunarDateSpec | null
   leapFallback?: LeapFallback
 }
 
@@ -82,7 +83,14 @@ export function computeOccasion(input: OccasionInput, today: CivilDate): Occasio
 
   // kind === 'anniversary'
   if (input.lunar) {
-    throw new Error('农历 anniversary 尚未接线，见 Task 9（lib/lunar.ts 完成后会替换此实现）')
+    const next = nextLunarOccurrence(input.lunar, today)
+    return {
+      daysBetween: next ? diffDays(today, next) : Number.POSITIVE_INFINITY,
+      years: completedYears(input.date, today),
+      months: 0,
+      nextDate: next,
+      isToday: next ? diffDays(today, next) === 0 : false,
+    }
   }
   const next = nextAnniversaryDateSolar(input.date, today, fb)
   const daysBetween = diffDays(today, next)

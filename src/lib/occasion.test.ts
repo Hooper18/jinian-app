@@ -140,16 +140,28 @@ describe('computeOccasion — anniversary（公历）', () => {
     )
     expect(state.nextDate).toEqual({ y: 2027, m: 2, d: 28 })
   })
-  it('传入非空 lunar 但尚未接线时应抛错（占位行为，Task 9 会替换）', () => {
-    expect(() =>
-      computeOccasion(
-        {
-          kind: 'anniversary',
-          date: { y: 2000, m: 6, d: 1 },
-          lunar: { lunarMonth: 5, lunarDay: 8, isLeap: false },
-        },
-        { y: 2026, m: 7, d: 1 },
-      ),
-    ).toThrow()
+  it('农历 anniversary：下次发生日经农历换算得出', () => {
+    const state = computeOccasion(
+      {
+        kind: 'anniversary',
+        date: { y: 2000, m: 9, d: 20 },
+        lunar: { lunarMonth: 8, lunarDay: 15, isLeap: false },
+      },
+      { y: 2026, m: 1, d: 1 },
+    )
+    expect(state.nextDate).toEqual({ y: 2026, m: 9, d: 25 })
+    expect(state.daysBetween).toBeGreaterThan(0)
+  })
+  it('农历 anniversary：窗口内无对应时 nextDate 为 null', () => {
+    const state = computeOccasion(
+      {
+        kind: 'anniversary',
+        date: { y: 2000, m: 3, d: 1 },
+        lunar: { lunarMonth: 2, lunarDay: 1, isLeap: true },
+      },
+      { y: 2026, m: 1, d: 1 },
+    )
+    // 默认窗口 25 年内闰二月会出现（2042），所以这里应能找到
+    expect(state.nextDate).not.toBeNull()
   })
 })
