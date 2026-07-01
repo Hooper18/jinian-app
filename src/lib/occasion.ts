@@ -39,3 +39,58 @@ export function completedMonths(from: CivilDate, to: CivilDate): number {
 export function completedYears(from: CivilDate, to: CivilDate): number {
   return Math.floor(completedMonths(from, to) / 12)
 }
+
+export interface OccasionState {
+  daysBetween: number
+  years: number
+  months: number
+  nextDate: CivilDate | null
+  isToday: boolean
+}
+
+export interface OccasionInput {
+  kind: OccasionKind
+  date: CivilDate
+  lunar?: { lunarMonth: number; lunarDay: number; isLeap: boolean } | null
+  leapFallback?: LeapFallback
+}
+
+export function computeOccasion(input: OccasionInput, today: CivilDate): OccasionState {
+  const fb = input.leapFallback ?? 'feb28'
+
+  if (input.kind === 'since') {
+    const daysBetween = diffDays(input.date, today)
+    return {
+      daysBetween,
+      years: completedYears(input.date, today),
+      months: completedMonths(input.date, today),
+      nextDate: null,
+      isToday: daysBetween === 0,
+    }
+  }
+
+  if (input.kind === 'until') {
+    const daysBetween = diffDays(today, input.date)
+    return {
+      daysBetween,
+      years: 0,
+      months: 0,
+      nextDate: input.date,
+      isToday: daysBetween === 0,
+    }
+  }
+
+  // kind === 'anniversary'
+  if (input.lunar) {
+    throw new Error('农历 anniversary 尚未接线，见 Task 9（lib/lunar.ts 完成后会替换此实现）')
+  }
+  const next = nextAnniversaryDateSolar(input.date, today, fb)
+  const daysBetween = diffDays(today, next)
+  return {
+    daysBetween,
+    years: completedYears(input.date, today),
+    months: 0,
+    nextDate: next,
+    isToday: daysBetween === 0,
+  }
+}
