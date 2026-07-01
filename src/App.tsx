@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useOccasions } from './hooks/useOccasions'
+import { syncReminders } from './lib/localNotifications'
 import ToastHost from './components/ToastHost'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
@@ -14,6 +17,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
+  const { user } = useAuth()
+  const { occasions, loading } = useOccasions()
+
+  useEffect(() => {
+    if (!user || loading) return
+    void syncReminders(occasions)
+  }, [user, loading, occasions])
+
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
