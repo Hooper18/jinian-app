@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.local
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+android/app/build/
+android/.gradle/
+android/app/release/
+android/key.properties
+android/local.properties
+android/captures/
+.DS_Store
