@@ -6,6 +6,8 @@ import { uploadCover, removeCover } from '../lib/coverStorage'
 import type { OccasionKind, MilestoneConfig } from '../lib/occasion'
 import type { OccasionRow } from '../types/occasion'
 import { showToast } from '../lib/toast'
+import { todayCivil, formatCivilDate } from '../lib/civilDate'
+import { lunarToSolarInYear, nextLunarOccurrence } from '../lib/lunar'
 
 const KIND_OPTIONS: { value: OccasionKind; label: string }[] = [
   { value: 'anniversary', label: '每年循环' },
@@ -49,6 +51,9 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
   const [title, setTitle] = useState(existing?.title ?? '')
   const [date, setDate] = useState(existing?.date ?? '')
   const [lunar, setLunar] = useState(existing?.lunar ?? false)
+  const [lunarMonth, setLunarMonth] = useState(existing?.lunar_month ?? 1)
+  const [lunarDay, setLunarDay] = useState(existing?.lunar_day ?? 1)
+  const [lunarIsLeap, setLunarIsLeap] = useState(existing?.lunar_is_leap ?? false)
   const [note, setNote] = useState(existing?.note ?? '')
   const [milestones, setMilestones] = useState<MilestoneConfig>(
     existing?.milestones ?? { hundreds: true, thousand: true },
@@ -69,14 +74,46 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
     )
   }
 
+  const lunarActive = kind === 'anniversary' && lunar
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
     try {
       let coverPath = existing?.cover_path ?? null
+
+      const baseFields = lunarActive
+        ? {
+            kind,
+            title,
+            date: (() => {
+              const next = nextLunarOccurrence({ lunarMonth, lunarDay, isLeap: lunarIsLeap }, todayCivil())
+              return next ? formatCivilDate(next) : formatCivilDate(todayCivil())
+            })(),
+            lunar: true,
+            lunar_month: lunarMonth,
+            lunar_day: lunarDay,
+            lunar_is_leap: lunarIsLeap,
+            note,
+            milestones,
+            remind_days: remindDays,
+          }
+        : {
+            kind,
+            title,
+            date,
+            lunar: false,
+            lunar_month: null,
+            lunar_day: null,
+            lunar_is_leap: false,
+            note,
+            milestones,
+            remind_days: remindDays,
+          }
+
       const saved = existing
-        ? await updateOccasion(existing.id, { kind, title, date, lunar, note, milestones, remind_days: remindDays })
-        : await createOccasion({ kind, title, date, lunar, note, milestones, remind_days: remindDays })
+        ? await updateOccasion(existing.id, baseFields)
+        : await createOccasion(baseFields)
 
       if (coverFile) {
         const compressed = await compressImageToJpeg(coverFile)
@@ -165,17 +202,21 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
       </div>
 
       <div className="mb-4 flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
-        <label htmlFor="date" className="sr-only">
-          日期
-        </label>
-        <input
-          id="date"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          required
-          className="text-sm"
-        />
+        {!lunarActive && (
+          <>
+            <label htmlFor="date" className="sr-only">
+              日期
+            </label>
+            <input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              className="text-sm"
+            />
+          </>
+        )}
         <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           农历
           <input
@@ -187,6 +228,61 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
           />
         </label>
       </div>
+
+      {lunarActive && (
+        <div className="mb-4 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
+          <div className="mb-2 flex items-center gap-2">
+            <label htmlFor="lunar-month" className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              农历月
+            </label>
+            <input
+              id="lunar-month"
+              type="number"
+              aria-label="农历月"
+              min={1}
+              max={12}
+              value={lunarMonth}
+              onChange={(e) => setLunarMonth(Number(e.target.value))}
+              required
+              className="w-16 rounded-lg border px-2 py-1 text-sm"
+              style={{ borderColor: 'var(--border)' }}
+            />
+            <label htmlFor="lunar-day" className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              农历日
+            </label>
+            <input
+              id="lunar-day"
+              type="number"
+              aria-label="农历日"
+              min={1}
+              max={30}
+              value={lunarDay}
+              onChange={(e) => setLunarDay(Number(e.target.value))}
+              required
+              className="w-16 rounded-lg border px-2 py-1 text-sm"
+              style={{ borderColor: 'var(--border)' }}
+            />
+            <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              闰月
+              <input
+                type="checkbox"
+                aria-label="闰月"
+                checked={lunarIsLeap}
+                onChange={(e) => setLunarIsLeap(e.target.checked)}
+              />
+            </label>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {(() => {
+              const hits = lunarToSolarInYear({ lunarMonth, lunarDay, isLeap: lunarIsLeap }, todayCivil().y)
+              const hit = hits[0]
+              return hit
+                ? `农历${lunarMonth}月${lunarDay}日 · 今年对应公历 ${formatCivilDate(hit)}`
+                : `农历${lunarMonth}月${lunarDay}日 · 近年无对应`
+            })()}
+          </p>
+        </div>
+      )}
 
       {kind === 'since' && (
         <div

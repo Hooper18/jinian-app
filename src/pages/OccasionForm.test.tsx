@@ -58,6 +58,67 @@ describe('OccasionForm 新建表单', () => {
     )
   })
 
+  it('勾选农历后显示农历月/农历日/闰月输入', async () => {
+    render(
+      <MemoryRouter>
+        <OccasionForm />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByLabelText('农历月')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText('农历'))
+    expect(screen.getByLabelText('农历月')).toBeInTheDocument()
+    expect(screen.getByLabelText('农历日')).toBeInTheDocument()
+    expect(screen.getByLabelText('闰月')).toBeInTheDocument()
+  })
+
+  it('提交农历纪念日携带 lunar 字段与非空 date', async () => {
+    render(
+      <MemoryRouter>
+        <OccasionForm />
+      </MemoryRouter>,
+    )
+    await userEvent.type(screen.getByLabelText('名字'), '奶奶生日')
+    await userEvent.click(screen.getByLabelText('农历'))
+    await userEvent.clear(screen.getByLabelText('农历月'))
+    await userEvent.type(screen.getByLabelText('农历月'), '8')
+    await userEvent.clear(screen.getByLabelText('农历日'))
+    await userEvent.type(screen.getByLabelText('农历日'), '15')
+    await userEvent.click(screen.getByRole('button', { name: '存' }))
+
+    expect(createOccasion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lunar: true,
+        lunar_month: 8,
+        lunar_day: 15,
+        lunar_is_leap: false,
+      }),
+    )
+    const payload = createOccasion.mock.calls[createOccasion.mock.calls.length - 1][0]
+    expect(typeof payload.date).toBe('string')
+    expect(payload.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(payload.date).not.toBe('')
+  })
+
+  it('非农历提交仍发送 lunar:false 与公历 date（现有行为）', async () => {
+    render(
+      <MemoryRouter>
+        <OccasionForm />
+      </MemoryRouter>,
+    )
+    await userEvent.type(screen.getByLabelText('名字'), '婚礼')
+    await userEvent.type(screen.getByLabelText('日期'), '2026-09-28')
+    await userEvent.click(screen.getByRole('button', { name: '存' }))
+    expect(createOccasion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lunar: false,
+        date: '2026-09-28',
+        lunar_month: null,
+        lunar_day: null,
+        lunar_is_leap: false,
+      }),
+    )
+  })
+
   it('提醒 chips 默认选中"当天"与"提前1天"，切换"提前1周"后提交携带 remind_days', async () => {
     render(
       <MemoryRouter>
