@@ -112,4 +112,25 @@ describe('computeReminderTimes', () => {
     expect(r1[0].id).toBe(r2[0].id)
     expect(Number.isInteger(r1[0].id)).toBe(true)
   })
+
+  it('同一 since 内不同里程碑+偏移落到同一提醒日时，id 不冲突、两条都保留（回归：修复前会被误去重丢一条）', () => {
+    const today = { y: 2026, m: 7, d: 1 }
+    const now = new Date('2026-07-01T08:00:00+08:00')
+    const result = computeReminderTimes(
+      [
+        makeRow({
+          kind: 'since',
+          date: '2023-07-10',
+          remind_days: [0, 100],
+          milestones: { hundreds: true },
+        }),
+      ],
+      today,
+      now,
+    )
+    // 里程碑第1100天(offset=0) 与 第1200天(offset=100) 都落在 2026-07-14 09:00 CST
+    const collided = result.filter((it) => it.at.toISOString() === '2026-07-14T01:00:00.000Z')
+    expect(collided).toHaveLength(2)
+    expect(collided[0].id).not.toBe(collided[1].id)
+  })
 })

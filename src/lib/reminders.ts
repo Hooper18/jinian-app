@@ -74,7 +74,7 @@ export function computeReminderTimes(
         const at = keyDateToNineAM(remindDate)
         if (at.getTime() <= now.getTime()) continue
         items.push({
-          id: hashToInt32(`${row.id}:${remindDate.y}-${remindDate.m}-${remindDate.d}`),
+          id: hashToInt32(`${row.id}:${keyDate.y}-${keyDate.m}-${keyDate.d}:${offset}`),
           at,
           title: row.title,
           body: bodyFor(row, keyDate, today),
