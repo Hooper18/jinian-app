@@ -5,6 +5,7 @@ import {
   completedMonths,
   completedYears,
   computeOccasion,
+  expandMilestones,
 } from './occasion'
 
 describe('anchorInYear', () => {
@@ -165,3 +166,85 @@ describe('computeOccasion — anniversary（公历）', () => {
     expect(state.nextDate).not.toBeNull()
   })
 })
+
+describe('expandMilestones', () => {
+  const start = { y: 2023, m: 7, d: 10 }
+
+  it('hundreds 预设展开出第100/200/300...天', () => {
+    const result = expandMilestones(start, { hundreds: true }, { y: 2023, m: 7, d: 10 })
+    expect(result[0]).toMatchObject({ key: 'd100', dayOffset: 100 })
+    expect(result[1]).toMatchObject({ key: 'd200', dayOffset: 200 })
+  })
+
+  it('thousand 预设只展开第1000天一条', () => {
+    const result = expandMilestones(start, { thousand: true }, { y: 2023, m: 7, d: 10 })
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ key: 'd1000', dayOffset: 1000 })
+  })
+
+  it('romantic 预设展开520和1314两条', () => {
+    const result = expandMilestones(start, { romantic: true }, { y: 2023, m: 7, d: 10 })
+    expect(result.map((m) => m.dayOffset)).toEqual([520, 1314])
+  })
+
+  it('monthly 用真实日历月计算，不是30天近似（1月31日起点场景验证不漂移）', () => {
+    const result = expandMilestones(
+      { y: 2026, m: 1, d: 31 },
+      { monthly: true },
+      { y: 2026, m: 1, d: 31 },
+      120,
+    )
+    // 1/31 +1月 clamp 到 2/28（平年），+2月 clamp 到 3/31，与"每30天"近似值不同
+    expect(result[0].date).toEqual({ y: 2026, m: 2, d: 28 })
+    expect(result[1].date).toEqual({ y: 2026, m: 3, d: 31 })
+  })
+
+  it('customDays 支持自定义天数并去重排序', () => {
+    const result = expandMilestones(
+      start,
+      { customDays: [888, 100] },
+      { y: 2023, m: 7, d: 10 },
+    )
+    expect(result.map((m) => m.dayOffset)).toEqual([100, 888])
+  })
+
+  it('achieved 标记正确 — 今天之前已达成', () => {
+    const result = expandMilestones(
+      start,
+      { hundreds: true },
+      addDaysHelper(start, 150),
+    )
+    expect(result[0].achieved).toBe(true) // 第100天
+    expect(result[1].achieved).toBe(false) // 第200天
+  })
+
+  it('isNext 只标记第一个未达成的里程碑', () => {
+    const result = expandMilestones(start, { hundreds: true }, addDaysHelper(start, 150))
+    const nextOnes = result.filter((m) => m.isNext)
+    expect(nextOnes).toHaveLength(1)
+    expect(nextOnes[0].key).toBe('d200')
+  })
+
+  it('isToday 标记恰好今天达成的里程碑', () => {
+    const result = expandMilestones(start, { hundreds: true }, addDaysHelper(start, 100))
+    expect(result[0].isToday).toBe(true)
+    expect(result[0].achieved).toBe(false)
+  })
+
+  it('horizon 上界防止无限展开', () => {
+    const result = expandMilestones(start, { monthly: true }, start, 60)
+    expect(result.every((m) => m.dayOffset! <= 60)).toBe(true)
+  })
+
+  it('同一天多规则命中时去重，只留一条', () => {
+    // 第1000天恰好也是自定义天数，应只出现一次
+    const result = expandMilestones(start, { thousand: true, customDays: [1000] }, start)
+    expect(result).toHaveLength(1)
+  })
+})
+
+// 测试辅助：不直接 import addDays 避免与被测模块的导入产生耦合歧义，这里用局部小工具
+function addDaysHelper(c: { y: number; m: number; d: number }, n: number) {
+  const dt = new Date(Date.UTC(c.y, c.m - 1, c.d, 12) + n * 86_400_000)
+  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() }
+}

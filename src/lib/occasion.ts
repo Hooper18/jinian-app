@@ -1,4 +1,4 @@
-import { type CivilDate, diffDays, daysInMonth, isLeapYear } from './civilDate'
+import { type CivilDate, diffDays, daysInMonth, isLeapYear, addDays, addMonthsClamped } from './civilDate'
 import { type LunarDateSpec, nextLunarOccurrence } from './lunar'
 
 export type OccasionKind = 'anniversary' | 'since' | 'until'
@@ -101,4 +101,77 @@ export function computeOccasion(input: OccasionInput, today: CivilDate): Occasio
     nextDate: next,
     isToday: daysBetween === 0,
   }
+}
+
+export interface MilestoneConfig {
+  hundreds?: boolean
+  thousand?: boolean
+  monthly?: boolean
+  romantic?: boolean
+  customDays?: number[]
+}
+
+export interface Milestone {
+  key: string
+  label: string
+  date: CivilDate
+  dayOffset: number | null
+  achieved: boolean
+  isToday: boolean
+  isNext: boolean
+}
+
+/** 仅用于 kind='since'：起点 + 偏移天数展开为一串里程碑。 */
+export function expandMilestones(
+  start: CivilDate,
+  config: MilestoneConfig,
+  today: CivilDate,
+  horizonDays = 366 * 60,
+): Milestone[] {
+  const raw: { key: string; label: string; dayOffset: number; date: CivilDate }[] = []
+
+  const pushByOffset = (key: string, label: string, offset: number) => {
+    if (offset <= 0 || offset > horizonDays) return
+    raw.push({ key, label, dayOffset: offset, date: addDays(start, offset) })
+  }
+
+  if (config.hundreds) {
+    for (let k = 1; k * 100 <= horizonDays; k++) pushByOffset(`d${k * 100}`, `${k * 100} 天`, k * 100)
+  }
+  if (config.thousand) pushByOffset('d1000', '1000 天', 1000)
+  if (config.romantic) {
+    pushByOffset('d520', '520 天', 520)
+    pushByOffset('d1314', '1314 天', 1314)
+  }
+  if (config.monthly) {
+    for (let k = 1; ; k++) {
+      const date = addMonthsClamped(start, k)
+      const offset = diffDays(start, date)
+      if (offset > horizonDays) break
+      if (offset > 0) raw.push({ key: `m${k}`, label: `${k} 个月`, dayOffset: offset, date })
+    }
+  }
+  for (const n of config.customDays ?? []) pushByOffset(`c${n}`, `${n} 天`, n)
+
+  const seen = new Set<string>()
+  const deduped = raw
+    .sort((a, b) => a.dayOffset - b.dayOffset)
+    .filter((m) => {
+      const dateKey = `${m.date.y}-${m.date.m}-${m.date.d}`
+      if (seen.has(dateKey)) return false
+      seen.add(dateKey)
+      return true
+    })
+
+  const list: Milestone[] = deduped.map((m) => {
+    const delta = diffDays(today, m.date)
+    return { ...m, achieved: delta < 0, isToday: delta === 0, isNext: false }
+  })
+  const nextIndex = list.findIndex((m) => !m.achieved && !m.isToday)
+  if (nextIndex >= 0) list[nextIndex].isNext = true
+  else {
+    const todayIndex = list.findIndex((m) => m.isToday)
+    if (todayIndex >= 0) list[todayIndex].isNext = true
+  }
+  return list
 }
