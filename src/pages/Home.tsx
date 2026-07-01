@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, type OccasionState } from '../lib/occasion'
 import { parseCivilDate, todayCivil } from '../lib/civilDate'
+import Cover from '../components/Cover'
 import type { OccasionRow } from '../types/occasion'
 
 function stateFor(row: OccasionRow): OccasionState {
@@ -78,30 +79,39 @@ export default function Home() {
       {hero && (
         <Link
           to={`/occasion/${hero.id}`}
-          className="mb-6 block rounded-2xl p-5"
+          className="relative mb-6 block min-h-[168px] overflow-hidden rounded-2xl p-5"
           style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
         >
-          <p data-testid="occasion-title" className="text-base font-medium" style={{ color: 'var(--text-primary)' }}>
-            {hero.title}
-          </p>
-          {(() => {
-            const state = stateFor(hero)
-            if (isUnresolved(state)) {
+          {hero.cover_path && <Cover occasion={hero} variant="hero" />}
+          <div className="relative flex h-full flex-col justify-end">
+            <p
+              data-testid="occasion-title"
+              className="text-base font-medium"
+              style={{ color: hero.cover_path ? '#FFFFFF' : 'var(--text-primary)' }}
+            >
+              {hero.title}
+            </p>
+            {(() => {
+              const state = stateFor(hero)
+              const numberColor = hero.cover_path ? '#FFFFFF' : 'var(--accent)'
+              const unitColor = hero.cover_path ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)'
+              if (isUnresolved(state)) {
+                return (
+                  <p className="mt-1 text-xl font-semibold" style={{ color: numberColor }}>
+                    近年无对应
+                  </p>
+                )
+              }
               return (
-                <p className="mt-1 text-xl font-semibold" style={{ color: 'var(--accent)' }}>
-                  近年无对应
+                <p className="mt-1 text-3xl font-semibold" style={{ color: numberColor }}>
+                  {Math.abs(state.daysBetween)}
+                  <span className="ml-1 text-sm font-normal" style={{ color: unitColor }}>
+                    天
+                  </span>
                 </p>
               )
-            }
-            return (
-              <p className="mt-1 text-3xl font-semibold" style={{ color: 'var(--accent)' }}>
-                {Math.abs(state.daysBetween)}
-                <span className="ml-1 text-sm font-normal" style={{ color: 'var(--text-secondary)' }}>
-                  天
-                </span>
-              </p>
-            )
-          })()}
+            })()}
+          </div>
         </Link>
       )}
 
@@ -113,10 +123,13 @@ export default function Home() {
             className="flex items-center justify-between rounded-xl px-4 py-3"
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
           >
-            <span data-testid="occasion-title" className="text-sm" style={{ color: 'var(--text-primary)' }}>
-              {o.title}
+            <span className="flex min-w-0 items-center gap-3">
+              <Cover occasion={o} variant="thumb" />
+              <span data-testid="occasion-title" className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                {o.title}
+              </span>
             </span>
-            <span className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+            <span className="shrink-0 text-sm font-medium" style={{ color: 'var(--accent)' }}>
               {daysLabel(stateFor(o))}
             </span>
           </Link>
@@ -136,8 +149,11 @@ export default function Home() {
                 className="flex items-center justify-between rounded-xl px-4 py-3 opacity-70"
                 style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
               >
-                <span data-testid="occasion-title" style={{ color: 'var(--text-primary)' }}>
-                  {o.title}
+                <span className="flex min-w-0 items-center gap-3">
+                  <Cover occasion={o} variant="thumb" />
+                  <span data-testid="occasion-title" className="truncate" style={{ color: 'var(--text-primary)' }}>
+                    {o.title}
+                  </span>
                 </span>
               </Link>
             ))}

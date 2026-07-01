@@ -3,6 +3,7 @@ import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, expandMilestones } from '../lib/occasion'
 import { parseCivilDate, todayCivil, formatCivilDate } from '../lib/civilDate'
+import Cover from '../components/Cover'
 
 const KIND_LABEL = { anniversary: '每年循环', since: '累加计天', until: '倒数到某天' } as const
 
@@ -37,6 +38,8 @@ export default function OccasionDetail() {
           <ChevronLeft size={20} />
         </Link>
       </div>
+
+      <Cover occasion={row} variant="frame" className="mb-4" />
 
       <div className="text-center">
         <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
