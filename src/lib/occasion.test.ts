@@ -6,6 +6,7 @@ import {
   completedYears,
   computeOccasion,
   expandMilestones,
+  expandAnniversaryMilestones,
 } from './occasion'
 
 describe('anchorInYear', () => {
@@ -248,3 +249,50 @@ function addDaysHelper(c: { y: number; m: number; d: number }, n: number) {
   const dt = new Date(Date.UTC(c.y, c.m - 1, c.d, 12) + n * 86_400_000)
   return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() }
 }
+
+describe('expandAnniversaryMilestones', () => {
+  it('生成的第一条是第1周年，label 正确，dayOffset 为 null', () => {
+    const result = expandAnniversaryMilestones(
+      { y: 2020, m: 7, d: 10 },
+      { y: 2020, m: 7, d: 10 },
+      'feb28',
+      5,
+    )
+    expect(result[0]).toMatchObject({ key: 'y1', label: '第 1 周年', dayOffset: null })
+    expect(result[0].date).toEqual({ y: 2021, m: 7, d: 10 })
+  })
+
+  it('maxYears 限制生成条数', () => {
+    const result = expandAnniversaryMilestones(
+      { y: 2020, m: 7, d: 10 },
+      { y: 2020, m: 7, d: 10 },
+      'feb28',
+      3,
+    )
+    expect(result).toHaveLength(3)
+  })
+
+  it('achieved 与 isNext 标记正确', () => {
+    const result = expandAnniversaryMilestones(
+      { y: 2020, m: 7, d: 10 },
+      { y: 2023, m: 8, d: 1 },
+      'feb28',
+      5,
+    )
+    expect(result[0].achieved).toBe(true) // 第1周年 2021-07-10 已过
+    expect(result[2].achieved).toBe(true) // 第3周年 2023-07-10 已过
+    expect(result[3].isNext).toBe(true) // 第4周年 2024-07-10 是下一个
+  })
+
+  it('2/29 生日的周年按 leapFallback 处理', () => {
+    const result = expandAnniversaryMilestones(
+      { y: 2000, m: 2, d: 29 },
+      { y: 2000, m: 2, d: 29 },
+      'feb28',
+      27,
+    )
+    // 第26周年落在2026（平年），应回退到2/28
+    const y26 = result.find((m) => m.key === 'y26')
+    expect(y26?.date).toEqual({ y: 2026, m: 2, d: 28 })
+  })
+})

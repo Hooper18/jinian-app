@@ -175,3 +175,33 @@ export function expandMilestones(
   }
   return list
 }
+
+/** anniversary 专属：周年 + 年龄自动生成，不读 milestones 配置字段。 */
+export function expandAnniversaryMilestones(
+  anchor: CivilDate,
+  today: CivilDate,
+  fb: LeapFallback,
+  maxYears = 100,
+): Milestone[] {
+  const list: Milestone[] = []
+  for (let n = 1; n <= maxYears; n++) {
+    const date = anchorInYear(anchor, anchor.y + n, fb)
+    const delta = diffDays(today, date)
+    list.push({
+      key: `y${n}`,
+      label: `第 ${n} 周年`,
+      date,
+      dayOffset: null,
+      achieved: delta < 0,
+      isToday: delta === 0,
+      isNext: false,
+    })
+  }
+  const nextIndex = list.findIndex((m) => !m.achieved && !m.isToday)
+  if (nextIndex >= 0) list[nextIndex].isNext = true
+  else {
+    const todayIndex = list.findIndex((m) => m.isToday)
+    if (todayIndex >= 0) list[todayIndex].isNext = true
+  }
+  return list
+}
