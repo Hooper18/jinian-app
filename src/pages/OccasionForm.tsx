@@ -4,6 +4,7 @@ import { useOccasions } from '../hooks/useOccasions'
 import { compressImageToJpeg } from '../lib/imageCompress'
 import { uploadCover, removeCover } from '../lib/coverStorage'
 import type { OccasionKind, MilestoneConfig } from '../lib/occasion'
+import type { OccasionRow } from '../types/occasion'
 import { showToast } from '../lib/toast'
 
 const KIND_OPTIONS: { value: OccasionKind; label: string }[] = [
@@ -12,11 +13,37 @@ const KIND_OPTIONS: { value: OccasionKind; label: string }[] = [
   { value: 'until', label: '倒数到某天' },
 ]
 
+const REMIND_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: '当天' },
+  { value: 1, label: '提前1天' },
+  { value: 3, label: '提前3天' },
+  { value: 7, label: '提前1周' },
+]
+
 export default function OccasionForm() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const { occasions, createOccasion, updateOccasion } = useOccasions()
+  const { occasions, loading } = useOccasions()
   const existing = id ? occasions.find((o) => o.id === id) : undefined
+
+  if (id && !existing) {
+    if (loading) {
+      return (
+        <p className="mx-auto max-w-md px-4 py-6 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
+          加载中…
+        </p>
+      )
+    }
+    navigate('/', { replace: true })
+    return null
+  }
+
+  return <OccasionFormBody key={existing?.id ?? 'new'} existing={existing} />
+}
+
+function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
+  const navigate = useNavigate()
+  const { createOccasion, updateOccasion } = useOccasions()
 
   const [kind, setKind] = useState<OccasionKind>(existing?.kind ?? 'anniversary')
   const [title, setTitle] = useState(existing?.title ?? '')
@@ -26,21 +53,30 @@ export default function OccasionForm() {
   const [milestones, setMilestones] = useState<MilestoneConfig>(
     existing?.milestones ?? { hundreds: true, thousand: true },
   )
+  const [remindDays, setRemindDays] = useState<number[]>(existing?.remind_days ?? [0, 1])
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [removeCoverFlag, setRemoveCoverFlag] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const handleKindChange = (next: OccasionKind) => {
     setKind(next)
     if (next !== 'anniversary') setLunar(false)
   }
 
+  const toggleRemindDay = (value: number) => {
+    setRemindDays((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => a - b),
+    )
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
       let coverPath = existing?.cover_path ?? null
       const saved = existing
-        ? await updateOccasion(existing.id, { kind, title, date, lunar, note, milestones })
-        : await createOccasion({ kind, title, date, lunar, note, milestones })
+        ? await updateOccasion(existing.id, { kind, title, date, lunar, note, milestones, remind_days: remindDays })
+        : await createOccasion({ kind, title, date, lunar, note, milestones, remind_days: remindDays })
 
       if (coverFile) {
         const compressed = await compressImageToJpeg(coverFile)
@@ -54,6 +90,8 @@ export default function OccasionForm() {
       navigate(`/occasion/${saved.id}`)
     } catch (err) {
       showToast(err instanceof Error ? err.message : '保存失败，请重试', { durationMs: 6000 })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -179,6 +217,28 @@ export default function OccasionForm() {
         </div>
       )}
 
+      <p className="mb-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+        提醒
+      </p>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {REMIND_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={remindDays.includes(opt.value)}
+            onClick={() => toggleRemindDay(opt.value)}
+            className="rounded-full border px-3 py-1 text-xs"
+            style={
+              remindDays.includes(opt.value)
+                ? { background: 'var(--accent)', color: 'white', borderColor: 'var(--accent)' }
+                : { borderColor: 'var(--border)', color: 'var(--text-secondary)' }
+            }
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <label htmlFor="note" className="mb-1 block text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
         写点什么
       </label>
@@ -193,7 +253,8 @@ export default function OccasionForm() {
 
       <button
         type="submit"
-        className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white"
+        disabled={submitting}
+        className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
         style={{ background: 'var(--accent)' }}
       >
         存
