@@ -80,6 +80,13 @@ describe('addMonthsClamped', () => {
   it('跨年加月正确', () => {
     expect(addMonthsClamped({ y: 2025, m: 11, d: 15 }, 3)).toEqual({ y: 2026, m: 2, d: 15 })
   })
+  it('负 total（大负偏移）不产生 NaN、月份落在 1-12', () => {
+    const r = addMonthsClamped({ y: 1, m: 1, d: 15 }, -13)
+    expect(Number.isNaN(r.d)).toBe(false)
+    expect(r.m).toBeGreaterThanOrEqual(1)
+    expect(r.m).toBeLessThanOrEqual(12)
+    expect(r.d).toBe(15)
+  })
 })
 
 describe('compareCivilDate', () => {

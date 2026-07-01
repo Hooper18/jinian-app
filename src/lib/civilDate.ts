@@ -33,7 +33,7 @@ export function addDays(c: CivilDate, n: number): CivilDate {
 export function addMonthsClamped(c: CivilDate, n: number): CivilDate {
   const total = c.y * 12 + (c.m - 1) + n
   const y = Math.floor(total / 12)
-  const m = (total % 12) + 1
+  const m = (((total % 12) + 12) % 12) + 1
   return { y, m, d: Math.min(c.d, daysInMonth(y, m)) }
 }
 
