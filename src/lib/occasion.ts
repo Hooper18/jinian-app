@@ -1,0 +1,41 @@
+import { type CivilDate, diffDays, daysInMonth, isLeapYear } from './civilDate'
+
+export type OccasionKind = 'anniversary' | 'since' | 'until'
+export type LeapFallback = 'feb28' | 'mar1'
+
+/** 把「锚点(可能是2/29)」落到目标年份的一个真实存在的日期。 */
+export function anchorInYear(anchor: CivilDate, year: number, fb: LeapFallback): CivilDate {
+  if (anchor.m === 2 && anchor.d === 29 && !isLeapYear(year)) {
+    return fb === 'mar1' ? { y: year, m: 3, d: 1 } : { y: year, m: 2, d: 28 }
+  }
+  return { y: year, m: anchor.m, d: Math.min(anchor.d, daysInMonth(year, anchor.m)) }
+}
+
+/** 公历 anniversary 的下一次发生日：今年已过则明年，今天恰好到达算今年。 */
+export function nextAnniversaryDateSolar(
+  anchor: CivilDate,
+  today: CivilDate,
+  fb: LeapFallback,
+): CivilDate {
+  const thisYear = anchorInYear(anchor, today.y, fb)
+  if (diffDays(today, thisYear) < 0) {
+    return anchorInYear(anchor, today.y + 1, fb)
+  }
+  return thisYear
+}
+
+/**
+ * 满周期截断（anchor-day 感知），与 date-fns differenceInMonths 同语义：
+ * 只数「完整已满」的月数，不是简单的 (y2-y1)*12+(m2-m1)。
+ */
+export function completedMonths(from: CivilDate, to: CivilDate): number {
+  if (diffDays(from, to) < 0) return -completedMonths(to, from)
+  let months = (to.y - from.y) * 12 + (to.m - from.m)
+  const anchorLandedDay = Math.min(from.d, daysInMonth(to.y, to.m))
+  if (to.d < anchorLandedDay) months -= 1
+  return months
+}
+
+export function completedYears(from: CivilDate, to: CivilDate): number {
+  return Math.floor(completedMonths(from, to) / 12)
+}
