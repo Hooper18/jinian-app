@@ -67,6 +67,19 @@ describe('Home 首页', () => {
     expect(titles[0]).toBe('婚礼')
   })
 
+  it('since 场次（nextDate 恒为 null）显示天数而不是「近年无对应」', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    )
+    const row = screen.getByText('和 A 在一起').closest('a')
+    expect(row).not.toBeNull()
+    expect(row!.textContent).toMatch(/\d+\s*天/)
+    expect(row!.textContent).not.toMatch(/近年无对应/)
+    expect(screen.queryByText('近年无对应')).not.toBeInTheDocument()
+  })
+
   it('无日子时显示空态引导', () => {
     vi.doMock('../hooks/useOccasions', () => ({
       useOccasions: () => ({ occasions: [], loading: false, error: null }),

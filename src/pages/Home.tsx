@@ -22,7 +22,7 @@ function stateFor(row: OccasionRow): OccasionState {
 
 /** 未来 25 年窗口内无对应发生日（如极罕见闰月纪念日）时，daysBetween 为 +Infinity、nextDate 为 null。 */
 function isUnresolved(state: OccasionState): boolean {
-  return state.nextDate === null || !Number.isFinite(state.daysBetween)
+  return state.nextDate === null && !Number.isFinite(state.daysBetween)
 }
 
 function daysLabel(state: OccasionState): string {
