@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { syncReminders, requestNotificationPermissions, sendTestReminder } from './localNotifications'
+import { computeReminderTimes } from './reminders'
+import { todayCivil } from './civilDate'
 
 const getPending = vi.fn()
 const cancel = vi.fn(async () => undefined)
@@ -52,11 +54,30 @@ describe('localNotifications', () => {
     expect(requestPermissions).toHaveBeenCalled()
   })
 
-  it('syncReminders 取消不再需要的 pending，排程新的', async () => {
-    getPending.mockResolvedValue({ notifications: [{ id: 999999 }] })
+  it('syncReminders 差量同步：重叠 id 存活，仅取消陈旧 id，并带上 extra.occasionId', async () => {
+    // 与 syncReminders 内部同样的方式算出 desired 集合，取一个真实的 desired id
+    const desired = computeReminderTimes([row], todayCivil(), new Date())
+    expect(desired.length).toBeGreaterThan(0)
+    const keepId = desired[0].id
+
+    // pending 里混入一个与 desired 重叠的 id（必须存活）和一个陈旧 id（必须被取消）
+    getPending.mockResolvedValue({ notifications: [{ id: keepId }, { id: 999999 }] })
+
     await syncReminders([row])
+
+    // 只取消陈旧 id，重叠的 keepId 不应出现在 cancel 参数里
     expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 999999 }] })
-    expect(schedule).toHaveBeenCalled()
+    const cancelArgs = cancel.mock.calls[0][0] as { notifications: { id: number }[] }
+    expect(cancelArgs.notifications.some((n) => n.id === keepId)).toBe(false)
+
+    // schedule 携带目标集合，且回传 extra.occasionId 供深链使用
+    expect(schedule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notifications: expect.arrayContaining([
+          expect.objectContaining({ extra: { occasionId: row.id } }),
+        ]),
+      }),
+    )
   })
 
   it('syncReminders 在无权限时不调用 schedule', async () => {
