@@ -23,7 +23,6 @@ const mockRow = {
 
 const order = vi.fn(() => Promise.resolve({ data: [mockRow], error: null }))
 const select = vi.fn(() => ({ order }))
-const eq = vi.fn(() => Promise.resolve({ error: null }))
 const insertSingle = vi.fn(() => Promise.resolve({ data: mockRow, error: null }))
 const insertSelect = vi.fn(() => ({ single: insertSingle }))
 const insert = vi.fn(() => ({ select: insertSelect }))

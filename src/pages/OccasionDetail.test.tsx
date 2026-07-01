@@ -1,7 +1,17 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import OccasionDetail from './OccasionDetail'
+
+const mockNavigate = vi.fn()
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  }
+})
 
 const sinceRow = {
   id: 'occ-2',
@@ -22,9 +32,21 @@ const sinceRow = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
+const mockDeleteOccasion = vi.fn(() => Promise.resolve())
+
 vi.mock('../hooks/useOccasions', () => ({
-  useOccasions: () => ({ occasions: [sinceRow], loading: false, error: null, deleteOccasion: vi.fn() }),
+  useOccasions: () => ({
+    occasions: [sinceRow],
+    loading: false,
+    error: null,
+    deleteOccasion: mockDeleteOccasion,
+  }),
 }))
+
+beforeEach(() => {
+  mockNavigate.mockClear()
+  mockDeleteOccasion.mockClear()
+})
 
 function renderDetail(id: string) {
   return render(
@@ -46,6 +68,33 @@ describe('OccasionDetail 详情页', () => {
   it('since 类型显示里程碑区', () => {
     renderDetail('occ-2')
     expect(screen.getByTestId('milestone-section')).toBeInTheDocument()
+  })
+
+  it('编辑链接指向 /occasion/:id/edit', () => {
+    renderDetail('occ-2')
+    const editLink = screen.getByText('编辑').closest('a')
+    expect(editLink).not.toBeNull()
+    expect(editLink).toHaveAttribute('href', '/occasion/occ-2/edit')
+  })
+
+  it('点击删除，确认后调用 deleteOccasion 并跳转首页', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderDetail('occ-2')
+    fireEvent.click(screen.getByText('删除'))
+    expect(confirmSpy).toHaveBeenCalledWith('删除这个日子？')
+    expect(mockDeleteOccasion).toHaveBeenCalledWith('occ-2')
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'))
+    confirmSpy.mockRestore()
+  })
+
+  it('点击删除，取消确认则不调用 deleteOccasion', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderDetail('occ-2')
+    fireEvent.click(screen.getByText('删除'))
+    expect(confirmSpy).toHaveBeenCalledWith('删除这个日子？')
+    expect(mockDeleteOccasion).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
   })
 
   it('until 类型不显示里程碑区', () => {

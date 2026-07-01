@@ -47,6 +47,16 @@ vi.mock('../hooks/useOccasions', () => ({
 }))
 
 describe('Home 首页', () => {
+  it('渲染提醒设置入口，链接到 /notification-guide', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    )
+    const link = screen.getByLabelText('提醒设置')
+    expect(link).toHaveAttribute('href', '/notification-guide')
+  })
+
   it('渲染出全部日子的标题', () => {
     render(
       <MemoryRouter>

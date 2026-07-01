@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, Bell } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, type OccasionState } from '../lib/occasion'
 import { parseCivilDate, todayCivil } from '../lib/civilDate'
@@ -71,9 +71,14 @@ export default function Home() {
         <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
           纪念
         </h1>
-        <Link to="/new" aria-label="新建" style={{ color: 'var(--accent)' }}>
-          <Plus size={22} />
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/notification-guide" aria-label="提醒设置" style={{ color: 'var(--text-secondary)' }}>
+            <Bell size={19} />
+          </Link>
+          <Link to="/new" aria-label="新建" style={{ color: 'var(--accent)' }}>
+            <Plus size={22} />
+          </Link>
+        </div>
       </div>
 
       {hero && (

@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, expandMilestones } from '../lib/occasion'
@@ -9,10 +9,17 @@ const KIND_LABEL = { anniversary: '每年循环', since: '累加计天', until: 
 
 export default function OccasionDetail() {
   const { id } = useParams<{ id: string }>()
-  const { occasions } = useOccasions()
+  const navigate = useNavigate()
+  const { occasions, deleteOccasion } = useOccasions()
   const row = occasions.find((o) => o.id === id)
 
   if (!row) return null
+
+  const handleDelete = async () => {
+    if (!window.confirm('删除这个日子？')) return
+    await deleteOccasion(row.id)
+    navigate('/')
+  }
 
   const today = todayCivil()
   const anchor = parseCivilDate(row.date)
@@ -37,6 +44,18 @@ export default function OccasionDetail() {
         <Link to="/" aria-label="返回" style={{ color: 'var(--text-secondary)' }}>
           <ChevronLeft size={20} />
         </Link>
+        <div className="flex items-center gap-4 text-sm">
+          <Link to={`/occasion/${row.id}/edit`} style={{ color: 'var(--text-secondary)' }}>
+            编辑
+          </Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            删除
+          </button>
+        </div>
       </div>
 
       <Cover occasion={row} variant="frame" className="mb-4" />

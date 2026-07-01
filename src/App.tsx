@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useOccasions } from './hooks/useOccasions'
-import { syncReminders } from './lib/localNotifications'
+import { requestNotificationPermissions, syncReminders } from './lib/localNotifications'
 import ToastHost from './components/ToastHost'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
@@ -23,7 +23,7 @@ function AppRoutes() {
 
   useEffect(() => {
     if (!user || loading) return
-    void syncReminders(occasions)
+    void requestNotificationPermissions().then(() => syncReminders(occasions))
   }, [user, loading, occasions])
 
   return (
