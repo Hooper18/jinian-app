@@ -22,3 +22,10 @@ export async function getCoverSignedUrl(coverPath: string, updatedAt: string): P
   if (error) throw error
   return `${data.signedUrl}?v=${encodeURIComponent(updatedAt)}`
 }
+
+/** 直接下成 Blob（供出图画到 canvas 用，走 blob 不会污染 canvas、能正常 toBlob 导出）。 */
+export async function downloadCover(coverPath: string): Promise<Blob> {
+  const { data, error } = await supabase.storage.from(BUCKET).download(coverPath)
+  if (error) throw error
+  return data
+}

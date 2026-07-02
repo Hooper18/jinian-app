@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, expandMilestones } from '../lib/occasion'
 import { parseCivilDate, todayCivil, formatCivilDate } from '../lib/civilDate'
+import { downloadCover } from '../lib/coverStorage'
+import { buildCardContent, renderOccasionCard, downloadImage } from '../lib/shareCard'
+import { showToast } from '../lib/toast'
 import Cover from '../components/Cover'
 
 const KIND_LABEL = { anniversary: '每年循环', since: '累加计天', until: '倒数到某天' } as const
@@ -11,6 +15,7 @@ export default function OccasionDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { occasions, deleteOccasion } = useOccasions()
+  const [saving, setSaving] = useState(false)
   const row = occasions.find((o) => o.id === id)
 
   if (!row) return null
@@ -19,6 +24,27 @@ export default function OccasionDetail() {
     if (!window.confirm('删除这个日子？')) return
     await deleteOccasion(row.id)
     navigate('/')
+  }
+
+  const handleSaveImage = async () => {
+    setSaving(true)
+    try {
+      const content = buildCardContent(row, state)
+      let coverBlob: Blob | null = null
+      if (row.cover_path) {
+        try {
+          coverBlob = await downloadCover(row.cover_path)
+        } catch {
+          coverBlob = null
+        }
+      }
+      const png = await renderOccasionCard(content, coverBlob)
+      downloadImage(png, `纪念-${row.title}.png`)
+    } catch {
+      showToast('出图失败，请重试', { durationMs: 4000 })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const today = todayCivil()
@@ -45,6 +71,14 @@ export default function OccasionDetail() {
           <ChevronLeft size={20} />
         </Link>
         <div className="flex items-center gap-4 text-sm">
+          <button
+            type="button"
+            onClick={handleSaveImage}
+            disabled={saving}
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {saving ? '出图中…' : '存图'}
+          </button>
           <Link to={`/occasion/${row.id}/edit`} style={{ color: 'var(--text-secondary)' }}>
             编辑
           </Link>
