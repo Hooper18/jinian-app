@@ -1,11 +1,16 @@
 import { useState, type FormEvent } from 'react'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Auth() {
-  const { signInWithMagicLink } = useAuth()
+  const { signInWithMagicLink, user, ready } = useAuth()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // magic-link 回跳后 session 可能晚于首次渲染到达（或 getSession 超时先把人踢来 /auth）。
+  // 一旦确认已登录，就离开登录页回首页——否则会「明明登录成功却卡在登录页」。
+  if (ready && user) return <Navigate to="/" replace />
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
