@@ -57,6 +57,15 @@ describe('Home 首页', () => {
     expect(link).toHaveAttribute('href', '/notification-guide')
   })
 
+  it('渲染设置入口，链接到 /settings', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    )
+    expect(screen.getByLabelText('设置')).toHaveAttribute('href', '/settings')
+  })
+
   it('渲染出全部日子的标题', () => {
     render(
       <MemoryRouter>

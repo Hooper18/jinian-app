@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Plus, Bell } from 'lucide-react'
+import { Plus, Bell, Settings } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, type OccasionState } from '../lib/occasion'
 import { parseCivilDate, todayCivil } from '../lib/civilDate'
@@ -42,15 +42,25 @@ export default function Home() {
 
   if (occasions.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <p style={{ color: 'var(--text-secondary)' }}>记下第一个重要的日子</p>
+      <div className="relative min-h-screen">
         <Link
-          to="/new"
-          className="rounded-xl px-5 py-2.5 text-sm font-medium text-white"
-          style={{ background: 'var(--accent)' }}
+          to="/settings"
+          aria-label="设置"
+          className="absolute right-4 top-6"
+          style={{ color: 'var(--text-secondary)' }}
         >
-          新建
+          <Settings size={19} />
         </Link>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+          <p style={{ color: 'var(--text-secondary)' }}>记下第一个重要的日子</p>
+          <Link
+            to="/new"
+            className="rounded-xl px-5 py-2.5 text-sm font-medium text-white"
+            style={{ background: 'var(--accent)' }}
+          >
+            新建
+          </Link>
+        </div>
       </div>
     )
   }
@@ -72,6 +82,9 @@ export default function Home() {
           纪念
         </h1>
         <div className="flex items-center gap-4">
+          <Link to="/settings" aria-label="设置" style={{ color: 'var(--text-secondary)' }}>
+            <Settings size={19} />
+          </Link>
           <Link to="/notification-guide" aria-label="提醒设置" style={{ color: 'var(--text-secondary)' }}>
             <Bell size={19} />
           </Link>

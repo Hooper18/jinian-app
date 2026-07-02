@@ -10,6 +10,7 @@ import Home from './pages/Home'
 import OccasionDetail from './pages/OccasionDetail'
 import OccasionForm from './pages/OccasionForm'
 import NotificationGuide from './pages/NotificationGuide'
+import Settings from './pages/Settings'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { ready, user } = useAuth()
@@ -68,6 +69,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <NotificationGuide />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
           </ProtectedRoute>
         }
       />
