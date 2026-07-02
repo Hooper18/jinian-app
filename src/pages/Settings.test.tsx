@@ -37,6 +37,11 @@ describe('Settings 设置页', () => {
     expect(screen.getByText('me@example.com')).toBeInTheDocument()
   })
 
+  it('显示换设备云端恢复说明', () => {
+    renderPage()
+    expect(screen.getByText(/用同一邮箱登录即可全部恢复/)).toBeInTheDocument()
+  })
+
   it('两次一致且≥6位时保存调用 updatePassword', async () => {
     renderPage()
     await userEvent.type(screen.getByLabelText('新密码'), 'secret123')

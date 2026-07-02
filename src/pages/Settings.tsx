@@ -63,6 +63,15 @@ export default function Settings() {
         </p>
       </section>
 
+      <section className="mb-8">
+        <p className="mb-2 text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
+          数据
+        </p>
+        <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
+          你的日子都保存在云端。换手机或重装后，用同一邮箱登录即可全部恢复。
+        </p>
+      </section>
+
       <section className="mb-10">
         <p className="mb-3 text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
           修改密码
