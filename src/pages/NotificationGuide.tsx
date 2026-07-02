@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
 import { detectOem, type OemBrand } from '../lib/deviceOem'
 import { sendTestReminder, requestNotificationPermissions } from '../lib/localNotifications'
 
@@ -37,6 +39,7 @@ const STEPS: Record<OemBrand, string[]> = {
 export default function NotificationGuide() {
   const oem = detectOem()
   const [sent, setSent] = useState(false)
+  const navigate = useNavigate()
 
   const handleTest = async () => {
     await requestNotificationPermissions()
@@ -46,12 +49,24 @@ export default function NotificationGuide() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-6">
-      <h1 className="mb-1 text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
-        让提醒更准时
-      </h1>
-      <p className="mb-4 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        当前机型：{BRAND_LABEL[oem]}
-      </p>
+      <div className="mb-4 flex items-start">
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="返回"
+          className="mt-0.5"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <ChevronLeft size={22} />
+        </button>
+        <div className="ml-1">
+          <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+            让提醒更准时
+          </h1>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            当前机型：{BRAND_LABEL[oem]}
+          </p>
+        </div>
+      </div>
       <ol className="mb-6 space-y-2 text-sm leading-7" style={{ color: 'var(--text-primary)' }}>
         {STEPS[oem].map((step) => (
           <li key={step}>{step}</li>

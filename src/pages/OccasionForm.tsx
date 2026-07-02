@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { compressImageToJpeg } from '../lib/imageCompress'
 import { uploadCover, removeCover } from '../lib/coverStorage'
@@ -134,6 +135,20 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-md px-4 py-6">
+      <div className="mb-6 flex items-center">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          aria-label="返回"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <ChevronLeft size={22} />
+        </button>
+        <h1 className="ml-1 text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+          {existing ? '编辑' : '新建'}
+        </h1>
+      </div>
+
       <div className="mb-6">
         <div
           className="flex h-20 items-center justify-center rounded-xl border-2 border-dashed text-sm"
