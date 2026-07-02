@@ -21,12 +21,13 @@ vi.mock('../lib/supabase', () => {
 })
 
 function Probe() {
-  const { ready, confirmed, user } = useAuth()
+  const { ready, confirmed, user, isRecoverySession } = useAuth()
   return (
     <div>
       <span data-testid="ready">{String(ready)}</span>
       <span data-testid="confirmed">{String(confirmed)}</span>
       <span data-testid="user">{user ? user.id : 'none'}</span>
+      <span data-testid="recovery">{String(isRecoverySession)}</span>
     </div>
   )
 }
@@ -88,5 +89,29 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('confirmed').textContent).toBe('true'))
     expect(screen.getByTestId('user').textContent).toBe('u2')
+  })
+
+  it('PASSWORD_RECOVERY 事件把 isRecoverySession 置 true，随后 USER_UPDATED 复位', async () => {
+    const { supabase } = await import('../lib/supabase')
+    ;(supabase.auth.getSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { session: null },
+    })
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(screen.getByTestId('ready').textContent).toBe('true'))
+    expect(screen.getByTestId('recovery').textContent).toBe('false')
+
+    const listeners = (supabase as unknown as { __listeners: Array<(e: string, s: unknown) => void> })
+      .__listeners
+    listeners.forEach((cb) => cb('PASSWORD_RECOVERY', { user: { id: 'r1' } }))
+    await waitFor(() => expect(screen.getByTestId('recovery').textContent).toBe('true'))
+
+    listeners.forEach((cb) => cb('USER_UPDATED', { user: { id: 'r1' } }))
+    await waitFor(() => expect(screen.getByTestId('recovery').textContent).toBe('false'))
   })
 })

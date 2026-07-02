@@ -5,6 +5,7 @@ import { useOccasions } from './hooks/useOccasions'
 import { requestNotificationPermissions, syncReminders } from './lib/localNotifications'
 import ToastHost from './components/ToastHost'
 import Auth from './pages/Auth'
+import ResetPassword from './pages/ResetPassword'
 import Home from './pages/Home'
 import OccasionDetail from './pages/OccasionDetail'
 import OccasionForm from './pages/OccasionForm'
@@ -29,6 +30,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/"
         element={

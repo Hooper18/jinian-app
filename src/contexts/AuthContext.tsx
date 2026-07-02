@@ -7,7 +7,12 @@ export interface AuthContextType {
   session: Session | null
   ready: boolean
   confirmed: boolean
-  signInWithMagicLink: (email: string) => Promise<{ error: AuthError | null }>
+  /** 点重置密码邮件回跳后进入的临时会话——此时应引导去改密码而非当已登录用。 */
+  isRecoverySession: boolean
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+  updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
 }
 
@@ -27,6 +32,7 @@ export function AuthProvider({
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const [isRecoverySession, setIsRecoverySession] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -44,17 +50,21 @@ export function AuthProvider({
       }
     })
 
-    // 拿到真实事件后再纠正（含 magic-link 回跳后的 SIGNED_IN）。
+    // 拿到真实事件后再纠正（含密码登录后的 SIGNED_IN、重置密码回跳的 PASSWORD_RECOVERY）。
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
       if (!alive) return
       setSession(s)
       setReady(true)
       setConfirmed(true)
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoverySession(true)
+      } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        setIsRecoverySession(false)
+      }
       // 若未来这里需要调用其它 supabase 方法（如拉 profile），必须用
-      // setTimeout(fn, 0) 推迟，否则会触发 supabase-js 已知死锁
-      // （回调内直接 await 会让该 client 后续所有调用永久挂起）。
+      // setTimeout(fn, 0) 推迟，否则会触发 supabase-js 已知死锁。
     })
 
     return () => {
@@ -63,11 +73,29 @@ export function AuthProvider({
     }
   }, [timeoutMs])
 
-  const signInWithMagicLink = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error }
+  }
+
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
       email,
-      options: { emailRedirectTo: import.meta.env.VITE_PUBLIC_BASE_URL },
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
     })
+    return { error }
+  }
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    return { error }
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
     return { error }
   }
 
@@ -82,7 +110,11 @@ export function AuthProvider({
         session,
         ready,
         confirmed,
-        signInWithMagicLink,
+        isRecoverySession,
+        signIn,
+        signUp,
+        resetPassword,
+        updatePassword,
         signOut,
       }}
     >
