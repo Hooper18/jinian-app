@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { passwordErrorMessage } from '../lib/authError'
 import PasswordInput from '../components/PasswordInput'
 
 export default function Settings() {
@@ -28,7 +29,7 @@ export default function Settings() {
     setLoading(true)
     const { error } = await updatePassword(newPassword)
     if (error) {
-      setError('保存失败，请稍后再试')
+      setError(passwordErrorMessage(error.message))
     } else {
       setMessage('密码已更新，下次用邮箱 + 这个密码登录。')
       setNewPassword('')

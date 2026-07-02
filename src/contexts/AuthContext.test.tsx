@@ -14,6 +14,8 @@ vi.mock('../lib/supabase', () => {
         }),
         signInWithOtp: vi.fn(async () => ({ error: null })),
         signOut: vi.fn(async () => undefined),
+        updateUser: vi.fn(async () => ({ error: null })),
+        refreshSession: vi.fn(async () => ({ error: null })),
       },
       __listeners: listeners,
     },
@@ -113,5 +115,33 @@ describe('AuthProvider', () => {
 
     listeners.forEach((cb) => cb('USER_UPDATED', { user: { id: 'r1' } }))
     await waitFor(() => expect(screen.getByTestId('recovery').textContent).toBe('false'))
+  })
+
+  it('updatePassword 遇到会话过期会刷新并重试一次', async () => {
+    const { supabase } = await import('../lib/supabase')
+    ;(supabase.auth.getSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { session: { user: { id: 'u1' } } },
+    })
+    ;(supabase.auth.updateUser as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ error: { status: 401, message: 'Auth session missing!' } })
+      .mockResolvedValueOnce({ error: null })
+    ;(supabase.auth.refreshSession as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null })
+
+    let ctx: ReturnType<typeof useAuth> | undefined
+    function Grab() {
+      ctx = useAuth()
+      return null
+    }
+    render(
+      <AuthProvider>
+        <Grab />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(ctx).toBeDefined())
+
+    const res = await ctx!.updatePassword('secret123')
+    expect(res.error).toBeNull()
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1)
+    expect(supabase.auth.updateUser).toHaveBeenCalledTimes(2)
   })
 })

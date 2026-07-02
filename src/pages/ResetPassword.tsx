@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { passwordErrorMessage } from '../lib/authError'
 import PasswordInput from '../components/PasswordInput'
 
 export default function ResetPassword() {
@@ -40,7 +41,7 @@ export default function ResetPassword() {
         setError('链接已过期，请回登录页重新发起「去设置密码」')
         setExpired(true)
       } else {
-        setError('保存失败，请稍后再试')
+        setError(passwordErrorMessage(error.message))
       }
     } else {
       setMessage('密码已更新，正在进入…')

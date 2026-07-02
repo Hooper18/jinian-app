@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { isSessionError } from '../lib/authError'
 
 export interface AuthContextType {
   user: User | null
@@ -95,7 +96,14 @@ export function AuthProvider({
   }
 
   const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    let { error } = await supabase.auth.updateUser({ password: newPassword })
+    // 长时间挂着的标签页 access token 可能过期而没自动续上；先刷新会话再重试一次。
+    if (isSessionError(error)) {
+      const { error: refreshErr } = await supabase.auth.refreshSession()
+      if (!refreshErr) {
+        ;({ error } = await supabase.auth.updateUser({ password: newPassword }))
+      }
+    }
     return { error }
   }
 
