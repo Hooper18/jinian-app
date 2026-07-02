@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light dark;
   --bg-primary: #FAF9F7;
   --bg-secondary: #FFFFFF;
   --bg-tertiary: #F0EEE9;
@@ -11,6 +12,22 @@
   --accent: #C96442;
   --accent-hover: #B5563A;
   --accent-tint: rgba(201, 100, 66, 0.07);
+}
+
+/* 深色模式：跟随系统。参考 ChatGPT——深灰底(非纯黑) + #ECECEC 文字，保留黏土强调色（略提亮以在深底上够对比）。 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1E1E1E;
+    --bg-secondary: #2A2A2A;
+    --bg-tertiary: #333230;
+    --border: #3A3937;
+    --text-primary: #ECECEC;
+    --text-secondary: #A8A6A1;
+    --text-tertiary: #7C7A75;
+    --accent: #D97757;
+    --accent-hover: #C96442;
+    --accent-tint: rgba(217, 119, 87, 0.14);
+  }
 }
 
 html, body, #root {
