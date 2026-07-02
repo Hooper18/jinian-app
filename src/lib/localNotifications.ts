@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
-import { computeReminderTimes } from './reminders'
+import { computeReminderTimes, computeDigestReminders } from './reminders'
+import { isDigestEnabled } from './prefs'
 import { todayCivil } from './civilDate'
 import type { OccasionRow } from '../types/occasion'
 
@@ -39,7 +40,11 @@ export async function syncReminders(occasions: OccasionRow[]): Promise<void> {
     return
   }
 
-  const desired = computeReminderTimes(occasions, todayCivil(), new Date()).map((item) => ({
+  const items = isDigestEnabled()
+    ? computeDigestReminders(occasions, todayCivil(), new Date())
+    : computeReminderTimes(occasions, todayCivil(), new Date())
+
+  const desired = items.map((item) => ({
     id: item.id,
     title: item.title,
     body: item.body,

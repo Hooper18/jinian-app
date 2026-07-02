@@ -17,6 +17,10 @@ vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { email: 'me@example.com' }, updatePassword, signOut }),
 }))
 
+vi.mock('../hooks/useOccasions', () => ({
+  useOccasions: () => ({ occasions: [] }),
+}))
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -30,6 +34,17 @@ describe('Settings 设置页', () => {
     updatePassword.mockClear()
     signOut.mockClear()
     mockNavigate.mockClear()
+    localStorage.clear()
+  })
+
+  it('每日汇总开关默认关，点选后写入偏好', async () => {
+    renderPage()
+    const toggle = screen.getByLabelText('每日汇总提醒')
+    expect(toggle).not.toBeChecked()
+    await userEvent.click(toggle)
+    expect(toggle).toBeChecked()
+    const { isDigestEnabled } = await import('../lib/prefs')
+    expect(isDigestEnabled()).toBe(true)
   })
 
   it('显示账号邮箱', () => {

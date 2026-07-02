@@ -24,6 +24,39 @@ function keyDateToNineAM(key: CivilDate): Date {
   return new Date(Date.UTC(key.y, key.m - 1, key.d, 1, 0, 0)) // 09:00 CST = 01:00 UTC
 }
 
+/** 一条日子在近期的「关键日」列表：anniversary/until 取下次发生日；since 取接下来 3 个里程碑。 */
+function keyDatesFor(row: OccasionRow, today: CivilDate): CivilDate[] {
+  const anchorDate = parseCivilDate(row.date)
+  const keyDates: CivilDate[] = []
+
+  if (row.kind === 'anniversary') {
+    const state = computeOccasion(
+      {
+        kind: 'anniversary',
+        date: anchorDate,
+        lunar: row.lunar
+          ? { lunarMonth: row.lunar_month!, lunarDay: row.lunar_day!, isLeap: row.lunar_is_leap }
+          : null,
+        leapFallback: row.leap_fallback,
+      },
+      today,
+    )
+    if (state.nextDate) keyDates.push(state.nextDate)
+  } else if (row.kind === 'until') {
+    const state = computeOccasion({ kind: 'until', date: anchorDate }, today)
+    if (state.daysBetween >= 0 && state.nextDate) keyDates.push(state.nextDate)
+  } else {
+    // since：取 isNext 及其后若干个里程碑
+    const milestones = expandMilestones(anchorDate, row.milestones, today)
+    const nextIndex = milestones.findIndex((m) => m.isNext)
+    if (nextIndex >= 0) {
+      for (const m of milestones.slice(nextIndex, nextIndex + 3)) keyDates.push(m.date)
+    }
+  }
+
+  return keyDates
+}
+
 function bodyFor(row: OccasionRow, keyDate: CivilDate, today: CivilDate): string {
   const days = diffDays(today, keyDate)
   if (days === 0) return `今天是${row.title}`
@@ -40,33 +73,7 @@ export function computeReminderTimes(
   const items: ReminderItem[] = []
 
   for (const row of occasions) {
-    const anchorDate = parseCivilDate(row.date)
-    const keyDates: CivilDate[] = []
-
-    if (row.kind === 'anniversary') {
-      const state = computeOccasion(
-        {
-          kind: 'anniversary',
-          date: anchorDate,
-          lunar: row.lunar
-            ? { lunarMonth: row.lunar_month!, lunarDay: row.lunar_day!, isLeap: row.lunar_is_leap }
-            : null,
-          leapFallback: row.leap_fallback,
-        },
-        today,
-      )
-      if (state.nextDate) keyDates.push(state.nextDate)
-    } else if (row.kind === 'until') {
-      const state = computeOccasion({ kind: 'until', date: anchorDate }, today)
-      if (state.daysBetween >= 0 && state.nextDate) keyDates.push(state.nextDate)
-    } else {
-      // since：取 isNext 及其后若干个里程碑
-      const milestones = expandMilestones(anchorDate, row.milestones, today)
-      const nextIndex = milestones.findIndex((m) => m.isNext)
-      if (nextIndex >= 0) {
-        for (const m of milestones.slice(nextIndex, nextIndex + 3)) keyDates.push(m.date)
-      }
-    }
+    const keyDates = keyDatesFor(row, today)
 
     for (const keyDate of keyDates) {
       for (const offset of row.remind_days) {
@@ -94,4 +101,65 @@ export function computeReminderTimes(
   })
 
   return deduped.slice(0, maxItems)
+}
+
+/**
+ * 每日汇总模式：接下来 days 天里，每天早上 09:00 一条聚合通知，
+ * 内容为「今天：X」/「今天有 N 个日子：…」或「距『最近的』还有 M 天」。
+ * 相比逐条提醒，条数大幅收敛（远低于 64 上限）、更少打扰。
+ */
+export function computeDigestReminders(
+  occasions: OccasionRow[],
+  today: CivilDate,
+  now: Date,
+  days = 14,
+): ReminderItem[] {
+  // 每条日子取距今最近的一个关键日
+  const nearest: { title: string; key: CivilDate }[] = []
+  for (const row of occasions) {
+    let best: CivilDate | null = null
+    for (const kd of keyDatesFor(row, today)) {
+      if (diffDays(today, kd) < 0) continue
+      if (best === null || diffDays(today, kd) < diffDays(today, best)) best = kd
+    }
+    if (best) nearest.push({ title: row.title, key: best })
+  }
+
+  const items: ReminderItem[] = []
+  for (let d = 0; d < days; d++) {
+    const day = addDays(today, d)
+
+    const dueTitles = nearest.filter((n) => diffDays(day, n.key) === 0).map((n) => n.title)
+
+    let upcoming: { title: string; days: number } | null = null
+    for (const n of nearest) {
+      const delta = diffDays(day, n.key)
+      if (delta > 0 && (upcoming === null || delta < upcoming.days)) {
+        upcoming = { title: n.title, days: delta }
+      }
+    }
+
+    let body: string | null = null
+    if (dueTitles.length === 1) {
+      body = `今天：${dueTitles[0]}`
+    } else if (dueTitles.length > 1) {
+      body = `今天有 ${dueTitles.length} 个日子：${dueTitles.slice(0, 2).join('、')}${dueTitles.length > 2 ? ' 等' : ''}`
+    } else if (upcoming) {
+      body = `距「${upcoming.title}」还有 ${upcoming.days} 天`
+    }
+    if (!body) continue
+
+    const at = keyDateToNineAM(day)
+    if (at.getTime() <= now.getTime()) continue
+
+    items.push({
+      id: hashToInt32(`digest:${day.y}-${day.m}-${day.d}`),
+      at,
+      title: '纪念',
+      body,
+      occasionId: 'digest',
+    })
+  }
+
+  return items
 }

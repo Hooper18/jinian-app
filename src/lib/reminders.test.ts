@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeReminderTimes } from './reminders'
+import { computeReminderTimes, computeDigestReminders } from './reminders'
 import type { OccasionRow } from '../types/occasion'
 
 function makeRow(overrides: Partial<OccasionRow>): OccasionRow {
@@ -132,5 +132,45 @@ describe('computeReminderTimes', () => {
     const collided = result.filter((it) => it.at.toISOString() === '2026-07-14T01:00:00.000Z')
     expect(collided).toHaveLength(2)
     expect(collided[0].id).not.toBe(collided[1].id)
+  })
+})
+
+describe('computeDigestReminders', () => {
+  const today = { y: 2026, m: 7, d: 1 }
+  const now = new Date('2026-07-01T08:00:00+08:00')
+
+  it('空列表 → 无汇总', () => {
+    expect(computeDigestReminders([], today, now)).toHaveLength(0)
+  })
+
+  it('单个 until：到达前逐日「还有 N 天」，当天「今天：标题」，都在 09:00 CST', () => {
+    const rows = [makeRow({ kind: 'until', title: '婚礼', date: '2026-07-04', remind_days: [0] })]
+    const res = computeDigestReminders(rows, today, now, 14)
+    expect(res.map((r) => r.body)).toEqual([
+      '距「婚礼」还有 3 天',
+      '距「婚礼」还有 2 天',
+      '距「婚礼」还有 1 天',
+      '今天：婚礼',
+    ])
+    expect(res[0].at.toISOString()).toBe('2026-07-01T01:00:00.000Z')
+    expect(res[3].at.toISOString()).toBe('2026-07-04T01:00:00.000Z')
+    expect(res[0].title).toBe('纪念')
+    expect(res[0].occasionId).toBe('digest')
+  })
+
+  it('同一天多个日子 → 聚合为「今天有 N 个日子」', () => {
+    const rows = [
+      makeRow({ id: 'a', kind: 'until', title: '婚礼', date: '2026-07-03', remind_days: [0] }),
+      makeRow({ id: 'b', kind: 'anniversary', title: '生日', date: '2020-07-03', remind_days: [0] }),
+    ]
+    const res = computeDigestReminders(rows, today, now, 14)
+    const dueDay = res.find((r) => r.at.toISOString() === '2026-07-03T01:00:00.000Z')
+    expect(dueDay?.body).toBe('今天有 2 个日子：婚礼、生日')
+  })
+
+  it('条数收敛：窗口内每天最多一条', () => {
+    const rows = [makeRow({ kind: 'until', title: 'X', date: '2026-07-20', remind_days: [0] })]
+    const res = computeDigestReminders(rows, today, now, 14)
+    expect(res.length).toBeLessThanOrEqual(14)
   })
 })

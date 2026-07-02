@@ -1,13 +1,18 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useOccasions } from '../hooks/useOccasions'
 import { passwordErrorMessage } from '../lib/authError'
+import { isDigestEnabled, setDigestEnabled } from '../lib/prefs'
+import { syncReminders } from '../lib/localNotifications'
 import PasswordInput from '../components/PasswordInput'
 
 export default function Settings() {
   const { user, updatePassword, signOut } = useAuth()
+  const { occasions } = useOccasions()
   const navigate = useNavigate()
+  const [digest, setDigest] = useState(isDigestEnabled())
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -43,6 +48,13 @@ export default function Settings() {
     navigate('/auth', { replace: true })
   }
 
+  const handleToggleDigest = (e: ChangeEvent<HTMLInputElement>) => {
+    const on = e.target.checked
+    setDigest(on)
+    setDigestEnabled(on)
+    void syncReminders(occasions)
+  }
+
   return (
     <div className="mx-auto max-w-md px-4 py-6">
       <div className="mb-8 flex items-center">
@@ -69,6 +81,26 @@ export default function Settings() {
         </p>
         <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
           你的日子都保存在云端。换手机或重装后，用同一邮箱登录即可全部恢复。
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <p className="mb-3 text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
+          提醒
+        </p>
+        <label className="flex items-center justify-between">
+          <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+            每日汇总提醒
+          </span>
+          <input
+            type="checkbox"
+            aria-label="每日汇总提醒"
+            checked={digest}
+            onChange={handleToggleDigest}
+          />
+        </label>
+        <p className="mt-1 text-xs leading-6" style={{ color: 'var(--text-tertiary)' }}>
+          开启后每天早上推一条汇总，替代逐条弹窗——日子多时更少打扰。
         </p>
       </section>
 
