@@ -5,6 +5,11 @@ import { downloadImage } from './shareCard'
 
 export type SaveImageOutcome = 'downloaded' | 'shared' | 'canceled'
 
+/** 标题是用户输入，Android 文件名里 \/:*?"<>| 和控制字符都非法，统一替换成 -。 */
+function sanitizeFilename(name: string): string {
+  return Array.from(name, (ch) => (ch < ' ' || '\\/:*?"<>|'.includes(ch) ? '-' : ch)).join('')
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -30,7 +35,7 @@ export async function saveImage(blob: Blob, filename: string): Promise<SaveImage
 
   const data = await blobToBase64(blob)
   const written = await Filesystem.writeFile({
-    path: `share/${filename}`,
+    path: `share/${sanitizeFilename(filename)}`,
     data,
     directory: Directory.Cache,
     recursive: true,

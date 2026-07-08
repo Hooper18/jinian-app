@@ -59,6 +59,18 @@ describe('saveImage', () => {
     expect(downloadImage).not.toHaveBeenCalled()
   })
 
+  it('原生写文件前消毒文件名里的非法字符（标题是用户输入，可能带 / : * 等）', async () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true)
+    vi.mocked(Filesystem.writeFile).mockResolvedValue({ uri: 'file:///cache/x.png' })
+    vi.mocked(Share.share).mockResolvedValue({ activityType: undefined })
+
+    await saveImage(png, '纪念-A/B:C*D?.png')
+
+    expect(Filesystem.writeFile).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'share/纪念-A-B-C-D-.png' }),
+    )
+  })
+
   it('用户在分享面板点取消不算失败，返回 canceled', async () => {
     vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true)
     vi.mocked(Filesystem.writeFile).mockResolvedValue({ uri: 'file:///cache/x.png' })
