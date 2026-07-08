@@ -3,6 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import OccasionDetail from './OccasionDetail'
 import { saveImage } from '../lib/saveImage'
+import { renderOccasionCard } from '../lib/shareCard'
+import { downloadCover } from '../lib/coverStorage'
+import { showToast } from '../lib/toast'
 
 const mockNavigate = vi.fn()
 
@@ -18,6 +21,18 @@ vi.mock('../lib/shareCard', async (importOriginal) => {
     renderOccasionCard: vi.fn(async () => new Blob(['png'], { type: 'image/png' })),
   }
 })
+
+// coverStorage 走真实 supabase client，整体 mock 掉
+vi.mock('../lib/coverStorage', () => ({
+  uploadCover: vi.fn(),
+  removeCover: vi.fn(),
+  getCoverSignedUrl: vi.fn(async () => 'https://signed.example/cover.jpg'),
+  downloadCover: vi.fn(async () => new Blob(['cover'], { type: 'image/jpeg' })),
+}))
+
+vi.mock('../lib/toast', () => ({
+  showToast: vi.fn(),
+}))
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -46,11 +61,18 @@ const sinceRow = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
+const coverRow = {
+  ...sinceRow,
+  id: 'occ-cover',
+  title: '有封面的日子',
+  cover_path: 'covers/u1/occ-cover.jpg',
+}
+
 const mockDeleteOccasion = vi.fn(() => Promise.resolve())
 
 vi.mock('../hooks/useOccasions', () => ({
   useOccasions: () => ({
-    occasions: [sinceRow],
+    occasions: [sinceRow, coverRow],
     loading: false,
     error: null,
     deleteOccasion: mockDeleteOccasion,
@@ -58,8 +80,7 @@ vi.mock('../hooks/useOccasions', () => ({
 }))
 
 beforeEach(() => {
-  mockNavigate.mockClear()
-  mockDeleteOccasion.mockClear()
+  vi.clearAllMocks()
 })
 
 function renderDetail(id: string) {
@@ -118,6 +139,35 @@ describe('OccasionDetail 详情页', () => {
     const [blobArg, nameArg] = vi.mocked(saveImage).mock.calls[0]
     expect(blobArg).toBeInstanceOf(Blob)
     expect(nameArg).toBe('纪念-和 A 在一起.png')
+  })
+
+  it('带封面出图：封面下载成功后把 blob 传给 renderOccasionCard', async () => {
+    const coverBlob = new Blob(['real-cover'], { type: 'image/jpeg' })
+    vi.mocked(downloadCover).mockResolvedValueOnce(coverBlob)
+    renderDetail('occ-cover')
+    fireEvent.click(screen.getByText('存图'))
+    await waitFor(() => expect(saveImage).toHaveBeenCalled())
+    expect(downloadCover).toHaveBeenCalledWith('covers/u1/occ-cover.jpg')
+    expect(vi.mocked(renderOccasionCard).mock.calls[0][1]).toBe(coverBlob)
+  })
+
+  it('带封面出图：封面下载失败降级为无封面版式，照常出图', async () => {
+    vi.mocked(downloadCover).mockRejectedValueOnce(new Error('storage down'))
+    renderDetail('occ-cover')
+    fireEvent.click(screen.getByText('存图'))
+    await waitFor(() => expect(saveImage).toHaveBeenCalled())
+    expect(vi.mocked(renderOccasionCard).mock.calls[0][1]).toBeNull()
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it('存图失败：弹「出图失败」提示且按钮复位可重试', async () => {
+    vi.mocked(saveImage).mockRejectedValueOnce(new Error('boom'))
+    renderDetail('occ-2')
+    fireEvent.click(screen.getByText('存图'))
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith('出图失败，请重试', { durationMs: 4000 }),
+    )
+    expect(screen.getByText('存图')).toBeEnabled()
   })
 
   it('until 类型不显示里程碑区', () => {
