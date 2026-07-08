@@ -20,7 +20,9 @@ export async function removeCover(coverPath: string): Promise<void> {
 export async function getCoverSignedUrl(coverPath: string, updatedAt: string): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(coverPath, 3600)
   if (error) throw error
-  return `${data.signedUrl}?v=${encodeURIComponent(updatedAt)}`
+  // signedUrl 永远自带 ?token=<JWT>（storage-js 契约），缓存击穿参数必须用 & 追加，
+  // 用 ? 会把 token 值污染成 "jwt?v=..."，签名校验失败、封面全线破图
+  return `${data.signedUrl}&v=${encodeURIComponent(updatedAt)}`
 }
 
 /** 直接下成 Blob（供出图画到 canvas 用，走 blob 不会污染 canvas、能正常 toBlob 导出）。 */
