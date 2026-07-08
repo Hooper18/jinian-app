@@ -43,6 +43,21 @@ describe('OccasionForm 新建表单', () => {
     expect(screen.queryByTestId('milestone-section')).not.toBeInTheDocument()
   })
 
+  it('选完封面立即显示预览图（原生/网页选图后要有反馈）', async () => {
+    // jsdom 没实现 objectURL，桩掉
+    URL.createObjectURL = vi.fn(() => 'blob:cover-preview')
+    URL.revokeObjectURL = vi.fn()
+    render(
+      <MemoryRouter>
+        <OccasionForm />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByAltText('封面预览')).not.toBeInTheDocument()
+    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText(/添加封面照片/), file)
+    expect(screen.getByAltText('封面预览')).toHaveAttribute('src', 'blob:cover-preview')
+  })
+
   it('提交表单调用 createOccasion，携带正确的 kind 与 title', async () => {
     render(
       <MemoryRouter>

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
@@ -61,8 +61,16 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
   )
   const [remindDays, setRemindDays] = useState<number[]>(existing?.remind_days ?? [0, 1])
   const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [removeCoverFlag, setRemoveCoverFlag] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!coverFile) return
+    const url = URL.createObjectURL(coverFile)
+    setCoverPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [coverFile])
 
   const handleKindChange = (next: OccasionKind) => {
     setKind(next)
@@ -151,11 +159,15 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
 
       <div className="mb-6">
         <div
-          className="flex h-20 items-center justify-center rounded-xl border-2 border-dashed text-sm"
+          className={`overflow-hidden rounded-xl text-sm ${coverPreview ? 'aspect-video' : 'h-20 border-2 border-dashed'}`}
           style={{ borderColor: 'var(--border)', color: 'var(--text-tertiary)' }}
         >
-          <label className="cursor-pointer">
-            ＋ 添加封面照片
+          <label className="flex h-full w-full cursor-pointer items-center justify-center">
+            {coverPreview ? (
+              <img src={coverPreview} alt="封面预览" className="h-full w-full object-cover" />
+            ) : (
+              '＋ 添加封面照片'
+            )}
             <input
               type="file"
               accept="image/*"
@@ -170,6 +182,11 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
             />
           </label>
         </div>
+        {coverPreview && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            点图片可更换
+          </p>
+        )}
         {existing?.cover_path && !removeCoverFlag && (
           <button
             type="button"
