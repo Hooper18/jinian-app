@@ -71,6 +71,20 @@ describe('saveImage', () => {
     )
   })
 
+  it('原生写文件前把超长文件名按 UTF-8 字节截断（Android 单段上限 255 字节）', async () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true)
+    vi.mocked(Filesystem.writeFile).mockResolvedValue({ uri: 'file:///cache/x.png' })
+    vi.mocked(Share.share).mockResolvedValue({ activityType: undefined })
+
+    await saveImage(png, `纪念-${'念'.repeat(100)}.png`)
+
+    const { path } = vi.mocked(Filesystem.writeFile).mock.calls[0][0]
+    const name = (path as string).slice('share/'.length)
+    expect(new TextEncoder().encode(name).length).toBeLessThanOrEqual(200)
+    expect(name.startsWith('纪念-')).toBe(true)
+    expect(name.endsWith('.png')).toBe(true)
+  })
+
   it('用户在分享面板点取消不算失败，返回 canceled', async () => {
     vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true)
     vi.mocked(Filesystem.writeFile).mockResolvedValue({ uri: 'file:///cache/x.png' })

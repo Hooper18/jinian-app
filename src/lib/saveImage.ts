@@ -10,6 +10,28 @@ function sanitizeFilename(name: string): string {
   return Array.from(name, (ch) => (ch < ' ' || '\\/:*?"<>|'.includes(ch) ? '-' : ch)).join('')
 }
 
+/** ext4 单段文件名上限 255 字节（UTF-8），超长标题会让 writeFile 报 ENAMETOOLONG，留余量截到 200。 */
+const MAX_FILENAME_BYTES = 200
+
+function truncateFilenameBytes(name: string, maxBytes: number): string {
+  const encoder = new TextEncoder()
+  if (encoder.encode(name).length <= maxBytes) return name
+
+  const dot = name.lastIndexOf('.')
+  const ext = dot > 0 ? name.slice(dot) : ''
+  const stemBudget = maxBytes - encoder.encode(ext).length
+
+  let stem = ''
+  let bytes = 0
+  for (const ch of name.slice(0, dot > 0 ? dot : name.length)) {
+    const chBytes = encoder.encode(ch).length
+    if (bytes + chBytes > stemBudget) break
+    stem += ch
+    bytes += chBytes
+  }
+  return stem + ext
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -35,7 +57,7 @@ export async function saveImage(blob: Blob, filename: string): Promise<SaveImage
 
   const data = await blobToBase64(blob)
   const written = await Filesystem.writeFile({
-    path: `share/${sanitizeFilename(filename)}`,
+    path: `share/${truncateFilenameBytes(sanitizeFilename(filename), MAX_FILENAME_BYTES)}`,
     data,
     directory: Directory.Cache,
     recursive: true,
