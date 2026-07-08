@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
 import { compressImageToJpeg } from '../lib/imageCompress'
 import { uploadCover, removeCover } from '../lib/coverStorage'
+import CoverCropper from '../components/CoverCropper'
 import type { OccasionKind, MilestoneConfig } from '../lib/occasion'
 import type { OccasionRow } from '../types/occasion'
 import { showToast } from '../lib/toast'
@@ -61,6 +62,7 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
   )
   const [remindDays, setRemindDays] = useState<number[]>(existing?.remind_days ?? [0, 1])
   const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [cropSource, setCropSource] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [removeCoverFlag, setRemoveCoverFlag] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -174,14 +176,24 @@ function OccasionFormBody({ existing }: { existing: OccasionRow | undefined }) {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0]
-                if (f) {
-                  setCoverFile(f)
-                  setRemoveCoverFlag(false)
-                }
+                if (f) setCropSource(f)
+                // 清掉 value，取消裁切后重选同一张图也能再触发 change
+                e.target.value = ''
               }}
             />
           </label>
         </div>
+        {cropSource && (
+          <CoverCropper
+            file={cropSource}
+            onConfirm={(blob) => {
+              setCoverFile(new File([blob], 'cover.jpg', { type: 'image/jpeg' }))
+              setRemoveCoverFlag(false)
+              setCropSource(null)
+            }}
+            onCancel={() => setCropSource(null)}
+          />
+        )}
         {coverPreview && (
           <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
             点图片可更换

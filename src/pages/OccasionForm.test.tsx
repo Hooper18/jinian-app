@@ -11,6 +11,20 @@ vi.mock('../hooks/useOccasions', () => ({
   useOccasions: () => ({ occasions: [], loading: false, createOccasion, updateOccasion, deleteOccasion: vi.fn() }),
 }))
 
+// 裁切器桩：一键模拟「确定」（回传裁好的 blob）与「取消」
+vi.mock('../components/CoverCropper', () => ({
+  default: ({ onConfirm, onCancel }: { onConfirm: (b: Blob) => void; onCancel: () => void }) => (
+    <div data-testid="cover-cropper">
+      <button type="button" onClick={() => onConfirm(new Blob(['cropped'], { type: 'image/jpeg' }))}>
+        模拟裁切确定
+      </button>
+      <button type="button" onClick={onCancel}>
+        模拟裁切取消
+      </button>
+    </div>
+  ),
+}))
+
 describe('OccasionForm 新建表单', () => {
   it('默认类型是"每年循环"，农历开关可用', () => {
     render(
@@ -43,7 +57,7 @@ describe('OccasionForm 新建表单', () => {
     expect(screen.queryByTestId('milestone-section')).not.toBeInTheDocument()
   })
 
-  it('选完封面立即显示预览图（原生/网页选图后要有反馈）', async () => {
+  it('选完封面先进裁切，确定后显示裁好的预览图', async () => {
     // jsdom 没实现 objectURL，桩掉
     URL.createObjectURL = vi.fn(() => 'blob:cover-preview')
     URL.revokeObjectURL = vi.fn()
@@ -52,10 +66,37 @@ describe('OccasionForm 新建表单', () => {
         <OccasionForm />
       </MemoryRouter>,
     )
-    expect(screen.queryByAltText('封面预览')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cover-cropper')).not.toBeInTheDocument()
+
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText(/添加封面照片/), file)
+
+    // 先弹裁切、还没有预览
+    expect(screen.getByTestId('cover-cropper')).toBeInTheDocument()
+    expect(screen.queryByAltText('封面预览')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '模拟裁切确定' }))
+    expect(screen.queryByTestId('cover-cropper')).not.toBeInTheDocument()
     expect(screen.getByAltText('封面预览')).toHaveAttribute('src', 'blob:cover-preview')
+  })
+
+  it('裁切取消：不留预览、可重新选图', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:cover-preview')
+    URL.revokeObjectURL = vi.fn()
+    render(
+      <MemoryRouter>
+        <OccasionForm />
+      </MemoryRouter>,
+    )
+    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText(/添加封面照片/), file)
+    await userEvent.click(screen.getByRole('button', { name: '模拟裁切取消' }))
+    expect(screen.queryByTestId('cover-cropper')).not.toBeInTheDocument()
+    expect(screen.queryByAltText('封面预览')).not.toBeInTheDocument()
+
+    // 同一个文件再选一次，仍能再次进裁切（input value 被清空）
+    await userEvent.upload(screen.getByLabelText(/添加封面照片/), file)
+    expect(screen.getByTestId('cover-cropper')).toBeInTheDocument()
   })
 
   it('提交表单调用 createOccasion，携带正确的 kind 与 title', async () => {
