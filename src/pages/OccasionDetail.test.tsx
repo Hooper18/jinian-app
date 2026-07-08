@@ -2,8 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import OccasionDetail from './OccasionDetail'
+import { saveImage } from '../lib/saveImage'
 
 const mockNavigate = vi.fn()
+
+vi.mock('../lib/saveImage', () => ({
+  saveImage: vi.fn(() => Promise.resolve('shared')),
+}))
+
+// jsdom 没有 canvas，出图函数 mock 成返回固定 Blob
+vi.mock('../lib/shareCard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/shareCard')>()
+  return {
+    ...actual,
+    renderOccasionCard: vi.fn(async () => new Blob(['png'], { type: 'image/png' })),
+  }
+})
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -95,6 +109,15 @@ describe('OccasionDetail 详情页', () => {
     expect(mockDeleteOccasion).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
     confirmSpy.mockRestore()
+  })
+
+  it('点击存图：渲染卡片后交给 saveImage 做平台分流', async () => {
+    renderDetail('occ-2')
+    fireEvent.click(screen.getByText('存图'))
+    await waitFor(() => expect(saveImage).toHaveBeenCalled())
+    const [blobArg, nameArg] = vi.mocked(saveImage).mock.calls[0]
+    expect(blobArg).toBeInstanceOf(Blob)
+    expect(nameArg).toBe('纪念-和 A 在一起.png')
   })
 
   it('until 类型不显示里程碑区', () => {

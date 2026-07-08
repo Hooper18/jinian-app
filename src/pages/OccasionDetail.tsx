@@ -5,7 +5,8 @@ import { useOccasions } from '../hooks/useOccasions'
 import { computeOccasion, expandMilestones } from '../lib/occasion'
 import { parseCivilDate, todayCivil, formatCivilDate } from '../lib/civilDate'
 import { downloadCover } from '../lib/coverStorage'
-import { buildCardContent, renderOccasionCard, downloadImage } from '../lib/shareCard'
+import { buildCardContent, renderOccasionCard } from '../lib/shareCard'
+import { saveImage } from '../lib/saveImage'
 import { showToast } from '../lib/toast'
 import Cover from '../components/Cover'
 
@@ -39,7 +40,7 @@ export default function OccasionDetail() {
         }
       }
       const png = await renderOccasionCard(content, coverBlob)
-      downloadImage(png, `纪念-${row.title}.png`)
+      await saveImage(png, `纪念-${row.title}.png`)
     } catch {
       showToast('出图失败，请重试', { durationMs: 4000 })
     } finally {
