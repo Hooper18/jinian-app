@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Plus, Bell, Settings } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
-import { computeOccasion, type OccasionState } from '../lib/occasion'
+import { computeOccasion, KIND_PREFIX, type OccasionState } from '../lib/occasion'
 import { parseCivilDate, todayCivil } from '../lib/civilDate'
 import Cover from '../components/Cover'
 import type { OccasionRow } from '../types/occasion'
@@ -26,8 +26,22 @@ function isUnresolved(state: OccasionState): boolean {
   return state.nextDate === null && !Number.isFinite(state.daysBetween)
 }
 
-function daysLabel(state: OccasionState): string {
-  return isUnresolved(state) ? '近年无对应' : `${Math.abs(state.daysBetween)} 天`
+function DaysCell({ row, state }: { row: OccasionRow; state: OccasionState }) {
+  if (isUnresolved(state)) {
+    return (
+      <span className="shrink-0 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+        近年无对应
+      </span>
+    )
+  }
+  return (
+    <span className="shrink-0 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+      {KIND_PREFIX[row.kind]}{' '}
+      <span className="font-medium" style={{ color: 'var(--accent)' }}>
+        {Math.abs(state.daysBetween)} 天
+      </span>
+    </span>
+  )
 }
 
 /** 排序键：无对应的日子非有限，统一归为「最大」以确保稳定地排在最后，避免 NaN 比较。 */
@@ -122,6 +136,9 @@ export default function Home() {
               }
               return (
                 <p className="mt-1 text-3xl font-semibold" style={{ color: numberColor }}>
+                  <span className="mr-1.5 text-sm font-normal" style={{ color: unitColor }}>
+                    {KIND_PREFIX[hero.kind]}
+                  </span>
                   {Math.abs(state.daysBetween)}
                   <span className="ml-1 text-sm font-normal" style={{ color: unitColor }}>
                     天
@@ -147,9 +164,7 @@ export default function Home() {
                 {o.title}
               </span>
             </span>
-            <span className="shrink-0 text-sm font-medium" style={{ color: 'var(--accent)' }}>
-              {daysLabel(stateFor(o))}
-            </span>
+            <DaysCell row={o} state={stateFor(o)} />
           </Link>
         ))}
       </div>

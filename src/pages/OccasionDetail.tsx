@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
-import { computeOccasion, expandMilestones } from '../lib/occasion'
+import { computeOccasion, expandMilestones, KIND_PREFIX } from '../lib/occasion'
 import { parseCivilDate, todayCivil, formatCivilDate } from '../lib/civilDate'
 import { downloadCover } from '../lib/coverStorage'
 import { buildCardContent, renderOccasionCard } from '../lib/shareCard'
@@ -111,7 +111,7 @@ export default function OccasionDetail() {
           </span>
         ) : (
           <>
-            {row.kind === 'since' ? '已经' : row.kind === 'until' ? '还有' : '距下次'}{' '}
+            {KIND_PREFIX[row.kind]}{' '}
             <span className="text-2xl font-semibold" style={{ color: 'var(--accent)' }}>
               {Math.abs(state.daysBetween)}
             </span>{' '}

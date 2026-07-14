@@ -2,6 +2,13 @@ import { type CivilDate, diffDays, daysInMonth, isLeapYear, addDays, addMonthsCl
 import { type LunarDateSpec, nextLunarOccurrence } from './lunar'
 
 export type OccasionKind = 'anniversary' | 'since' | 'until'
+
+/** 各类型天数的方向语义前缀，首页/详情/出图统一用这一份。 */
+export const KIND_PREFIX: Record<OccasionKind, string> = {
+  since: '已经',
+  until: '还有',
+  anniversary: '距下次',
+}
 export type LeapFallback = 'feb28' | 'mar1'
 
 /** 把「锚点(可能是2/29)」落到目标年份的一个真实存在的日期。 */

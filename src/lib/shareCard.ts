@@ -1,5 +1,5 @@
 import type { OccasionRow } from '../types/occasion'
-import type { OccasionState } from './occasion'
+import { KIND_PREFIX, type OccasionState } from './occasion'
 import { parseCivilDate, formatCivilDate } from './civilDate'
 
 export interface CardContent {
@@ -13,12 +13,6 @@ export interface CardContent {
   dateLabel: string
 }
 
-const PREFIX: Record<OccasionRow['kind'], string> = {
-  since: '已经',
-  until: '还有',
-  anniversary: '距下次',
-}
-
 /** 纯函数：把一条日子 + 计算态映射成出图卡片的文字内容（与详情页显示逻辑一致）。可测试。 */
 export function buildCardContent(row: OccasionRow, state: OccasionState): CardContent {
   const anchor = parseCivilDate(row.date)
@@ -26,7 +20,7 @@ export function buildCardContent(row: OccasionRow, state: OccasionState): CardCo
     state.nextDate === null && !Number.isFinite(state.daysBetween) && row.kind !== 'since'
   return {
     title: row.title,
-    prefix: unresolved ? '' : PREFIX[row.kind],
+    prefix: unresolved ? '' : KIND_PREFIX[row.kind],
     bigText: unresolved ? '近年无对应' : String(Math.abs(state.daysBetween)),
     unit: unresolved ? '' : '天',
     dateLabel: formatCivilDate(anchor),

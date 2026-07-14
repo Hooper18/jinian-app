@@ -40,6 +40,24 @@ const mockOccasions = [
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
+  {
+    id: 'occ-anniv',
+    user_id: 'u1',
+    kind: 'anniversary',
+    title: '奶奶生日',
+    date: '2020-03-05',
+    lunar: false,
+    lunar_month: null,
+    lunar_day: null,
+    lunar_is_leap: false,
+    cover_path: null,
+    note: null,
+    remind_days: [0],
+    milestones: {},
+    leap_fallback: 'feb28',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
 ]
 
 vi.mock('../hooks/useOccasions', () => ({
@@ -84,6 +102,28 @@ describe('Home 首页', () => {
     )
     const titles = screen.getAllByTestId('occasion-title').map((el) => el.textContent)
     expect(titles[0]).toBe('婚礼')
+  })
+
+  it('列表行带方向语义：since 行显示「已经」、anniversary 行显示「距下次」', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    )
+    const sinceRow = screen.getByText('和 A 在一起').closest('a')
+    expect(sinceRow!.textContent).toMatch(/已经\s*\d+\s*天/)
+    const annivRow = screen.getByText('奶奶生日').closest('a')
+    expect(annivRow!.textContent).toMatch(/距下次\s*\d+\s*天/)
+  })
+
+  it('hero 大卡带方向语义：until 显示「还有」', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    )
+    const heroCard = screen.getByText('婚礼').closest('a')
+    expect(heroCard!.textContent).toMatch(/还有\s*\d+\s*天/)
   })
 
   it('since 场次（nextDate 恒为 null）显示天数而不是「近年无对应」', () => {
