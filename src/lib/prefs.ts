@@ -18,3 +18,22 @@ export function setDigestEnabled(on: boolean): void {
     /* localStorage 不可用时静默忽略 */
   }
 }
+
+const MEMORIES_KEY = 'jinian_memories_expanded'
+
+/** 首页「回忆」区是否展开，默认折叠。 */
+export function isMemoriesExpanded(): boolean {
+  try {
+    return localStorage.getItem(MEMORIES_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setMemoriesExpanded(on: boolean): void {
+  try {
+    localStorage.setItem(MEMORIES_KEY, on ? '1' : '0')
+  } catch {
+    /* localStorage 不可用时静默忽略 */
+  }
+}

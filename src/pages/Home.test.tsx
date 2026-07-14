@@ -139,10 +139,103 @@ describe('Home 首页', () => {
     expect(screen.queryByText('近年无对应')).not.toBeInTheDocument()
   })
 
-  it('无日子时显示空态引导', () => {
+  it('将至/陪伴两段同时存在时，各自显示小节标题', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('将至')).toBeInTheDocument()
+    expect(screen.getByText('陪伴')).toBeInTheDocument()
+  })
+})
+
+describe('Home 首页 — 今天正日子', () => {
+  it('anniversary 恰逢今天时 hero 显示「就是今天」', async () => {
+    vi.resetModules()
+    const now = new Date()
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const dd = String(now.getDate()).padStart(2, '0')
     vi.doMock('../hooks/useOccasions', () => ({
-      useOccasions: () => ({ occasions: [], loading: false, error: null }),
+      useOccasions: () => ({
+        occasions: [
+          {
+            id: 'occ-today',
+            user_id: 'u1',
+            kind: 'anniversary',
+            title: '今天的日子',
+            date: `2020-${mm}-${dd}`,
+            lunar: false,
+            lunar_month: null,
+            lunar_day: null,
+            lunar_is_leap: false,
+            cover_path: null,
+            note: null,
+            remind_days: [0],
+            milestones: {},
+            leap_fallback: 'feb28',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+        loading: false,
+        error: null,
+      }),
     }))
+    const { default: HomeToday } = await import('./Home')
+    render(
+      <MemoryRouter>
+        <HomeToday />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('就是今天')).toBeInTheDocument()
+  })
+})
+
+describe('Home 首页 — 回忆区折叠', () => {
+  const expiredRow = {
+    id: 'occ-past',
+    user_id: 'u1',
+    kind: 'until',
+    title: '过去的演唱会',
+    date: '2026-06-01',
+    lunar: false,
+    lunar_month: null,
+    lunar_day: null,
+    lunar_is_leap: false,
+    cover_path: null,
+    note: null,
+    remind_days: [0],
+    milestones: {},
+    leap_fallback: 'feb28',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+
+  it('默认折叠：只显示「回忆 · N」标题，点开后显示行与已过天数', async () => {
+    vi.resetModules()
+    localStorage.clear()
+    vi.doMock('../hooks/useOccasions', () => ({
+      useOccasions: () => ({
+        occasions: [expiredRow],
+        loading: false,
+        error: null,
+      }),
+    }))
+    const { default: HomeMemories } = await import('./Home')
+    const { fireEvent } = await import('@testing-library/react')
+    render(
+      <MemoryRouter>
+        <HomeMemories />
+      </MemoryRouter>,
+    )
+    const toggle = screen.getByRole('button', { name: /回忆 · 1/ })
+    expect(screen.queryByText('过去的演唱会')).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(screen.getByText('过去的演唱会')).toBeInTheDocument()
+    const row = screen.getByText('过去的演唱会').closest('a')
+    expect(row!.textContent).toMatch(/已过\s*\d+\s*天/)
   })
 })
 

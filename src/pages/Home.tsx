@@ -1,30 +1,13 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Bell, Settings } from 'lucide-react'
+import { Plus, Bell, Settings, ChevronDown, ChevronUp } from 'lucide-react'
 import { useOccasions } from '../hooks/useOccasions'
-import { computeOccasion, KIND_PREFIX, type OccasionState } from '../lib/occasion'
-import { parseCivilDate, todayCivil } from '../lib/civilDate'
+import { KIND_PREFIX, type OccasionState } from '../lib/occasion'
+import { buildHomeSections, stateOf, isUnresolved } from '../lib/homeSections'
+import { todayCivil } from '../lib/civilDate'
+import { isMemoriesExpanded, setMemoriesExpanded } from '../lib/prefs'
 import Cover from '../components/Cover'
 import type { OccasionRow } from '../types/occasion'
-
-function stateFor(row: OccasionRow): OccasionState {
-  const today = todayCivil()
-  return computeOccasion(
-    {
-      kind: row.kind,
-      date: parseCivilDate(row.date),
-      lunar: row.lunar
-        ? { lunarMonth: row.lunar_month!, lunarDay: row.lunar_day!, isLeap: row.lunar_is_leap }
-        : null,
-      leapFallback: row.leap_fallback,
-    },
-    today,
-  )
-}
-
-/** 未来 25 年窗口内无对应发生日（如极罕见闰月纪念日）时，daysBetween 为 +Infinity、nextDate 为 null。 */
-function isUnresolved(state: OccasionState): boolean {
-  return state.nextDate === null && !Number.isFinite(state.daysBetween)
-}
 
 function DaysCell({ row, state }: { row: OccasionRow; state: OccasionState }) {
   if (isUnresolved(state)) {
@@ -44,13 +27,35 @@ function DaysCell({ row, state }: { row: OccasionRow; state: OccasionState }) {
   )
 }
 
-/** 排序键：无对应的日子非有限，统一归为「最大」以确保稳定地排在最后，避免 NaN 比较。 */
-function sortKey(state: OccasionState): number {
-  return Number.isFinite(state.daysBetween) ? state.daysBetween : Number.MAX_SAFE_INTEGER
+function SectionCaption({ children }: { children: string }) {
+  return (
+    <p className="mb-2 text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
+      {children}
+    </p>
+  )
+}
+
+function OccasionRowLink({ row, state }: { row: OccasionRow; state: OccasionState }) {
+  return (
+    <Link
+      to={`/occasion/${row.id}`}
+      className="flex items-center justify-between rounded-xl px-4 py-3"
+      style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        <Cover occasion={row} variant="thumb" />
+        <span data-testid="occasion-title" className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+          {row.title}
+        </span>
+      </span>
+      <DaysCell row={row} state={state} />
+    </Link>
+  )
 }
 
 export default function Home() {
   const { occasions, loading } = useOccasions()
+  const [memoriesOpen, setMemoriesOpen] = useState(isMemoriesExpanded)
 
   if (loading) return null
 
@@ -79,15 +84,16 @@ export default function Home() {
     )
   }
 
-  const active = occasions.filter((o) => {
-    if (o.kind !== 'until') return true
-    return stateFor(o).daysBetween >= 0
-  })
-  const archived = occasions.filter((o) => o.kind === 'until' && stateFor(o).daysBetween < 0)
+  const today = todayCivil()
+  const { hero, heroIsToday, upcoming, companions, memories } = buildHomeSections(occasions, today)
+  const bothSections = upcoming.length > 0 && companions.length > 0
 
-  const sorted = [...active].sort((a, b) => sortKey(stateFor(a)) - sortKey(stateFor(b)))
-
-  const [hero, ...rest] = sorted
+  const toggleMemories = () => {
+    setMemoriesOpen((prev) => {
+      setMemoriesExpanded(!prev)
+      return !prev
+    })
+  }
 
   return (
     <div className="mx-auto max-w-md px-4 py-6">
@@ -124,9 +130,16 @@ export default function Home() {
               {hero.title}
             </p>
             {(() => {
-              const state = stateFor(hero)
+              const state = stateOf(hero, today)
               const numberColor = hero.cover_path ? '#FFFFFF' : 'var(--accent)'
               const unitColor = hero.cover_path ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)'
+              if (heroIsToday) {
+                return (
+                  <p className="mt-1 text-3xl font-semibold" style={{ color: numberColor }}>
+                    就是今天
+                  </p>
+                )
+              }
               if (isUnresolved(state)) {
                 return (
                   <p className="mt-1 text-xl font-semibold" style={{ color: numberColor }}>
@@ -150,47 +163,64 @@ export default function Home() {
         </Link>
       )}
 
-      <div className="space-y-2">
-        {rest.map((o) => (
-          <Link
-            key={o.id}
-            to={`/occasion/${o.id}`}
-            className="flex items-center justify-between rounded-xl px-4 py-3"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-          >
-            <span className="flex min-w-0 items-center gap-3">
-              <Cover occasion={o} variant="thumb" />
-              <span data-testid="occasion-title" className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>
-                {o.title}
-              </span>
-            </span>
-            <DaysCell row={o} state={stateFor(o)} />
-          </Link>
-        ))}
-      </div>
-
-      {archived.length > 0 && (
-        <div className="mt-8">
-          <p className="mb-2 text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
-            回忆
-          </p>
+      {upcoming.length > 0 && (
+        <div className="mt-6">
+          {bothSections && <SectionCaption>将至</SectionCaption>}
           <div className="space-y-2">
-            {archived.map((o) => (
-              <Link
-                key={o.id}
-                to={`/occasion/${o.id}`}
-                className="flex items-center justify-between rounded-xl px-4 py-3 opacity-70"
-                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Cover occasion={o} variant="thumb" />
-                  <span data-testid="occasion-title" className="truncate" style={{ color: 'var(--text-primary)' }}>
-                    {o.title}
-                  </span>
-                </span>
-              </Link>
+            {upcoming.map((o) => (
+              <OccasionRowLink key={o.id} row={o} state={stateOf(o, today)} />
             ))}
           </div>
+        </div>
+      )}
+
+      {companions.length > 0 && (
+        <div className="mt-8">
+          {bothSections && <SectionCaption>陪伴</SectionCaption>}
+          <div className="space-y-2">
+            {companions.map((o) => (
+              <OccasionRowLink key={o.id} row={o} state={stateOf(o, today)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {memories.length > 0 && (
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={toggleMemories}
+            className="mb-2 flex items-center gap-1 text-xs uppercase"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            回忆 · {memories.length}
+            {memoriesOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {memoriesOpen && (
+            <div className="space-y-2">
+              {memories.map((o) => {
+                const state = stateOf(o, today)
+                return (
+                  <Link
+                    key={o.id}
+                    to={`/occasion/${o.id}`}
+                    className="flex items-center justify-between rounded-xl px-4 py-3 opacity-70"
+                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <Cover occasion={o} variant="thumb" />
+                      <span data-testid="occasion-title" className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                        {o.title}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                      已过 {Math.abs(state.daysBetween)} 天
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
