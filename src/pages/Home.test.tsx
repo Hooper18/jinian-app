@@ -1,7 +1,17 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Home from './Home'
+
+// 夹具日期是写死的（如婚礼 2026-09-28），必须冻结「今天」，否则真实时钟走到
+// 那天测试就会翻车。只假冒 Date，不接管 setTimeout，避免干扰 RTL 的异步等待。
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-07-15T12:00:00+08:00'))
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 const mockOccasions = [
   {
